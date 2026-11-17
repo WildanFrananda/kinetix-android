@@ -1,0 +1,144 @@
+package com.kinetix.shop.repositories.auth
+
+import com.kinetix.shop.core.failure.SignInDelayedFailure
+import com.kinetix.shop.core.failure.WrongPasswordFailure
+import com.kinetix.shop.core.failure.WrongTwoFactorCodeFailure
+import com.kinetix.shop.core.network.ApiErrorParser
+import com.kinetix.shop.core.network.SafeApiCaller
+import com.kinetix.shop.core.result.Ok
+import com.kinetix.shop.core.result.Result
+import com.kinetix.shop.dto.auth.TwoFactorCodePasswordRequestDto
+import com.kinetix.shop.dto.auth.TwoFactorPasswordRequestDto
+import com.kinetix.shop.models.auth.TwoFactorSetupSecret
+import com.kinetix.shop.services.remote.IdentityApiService
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class TwoFactorRepositoryImpl @Inject constructor(
+    private val apiService: IdentityApiService,
+    private val safeApiCaller: SafeApiCaller,
+    private val errorParser: ApiErrorParser,
+    private val sessionRepository: SessionRepository,
+) : TwoFactorRepository {
+    override suspend fun setupTwoFactor(
+        password: String,
+    ): Result<TwoFactorSetupSecret> {
+        return sessionRepository.withValidSession { session ->
+            safeApiCaller.execute(
+                call = {
+                    apiService.setupTwoFactor(
+                        accountId = session.accountId.value,
+                        bearerToken = "Bearer ${session.accessToken}",
+                        request = TwoFactorPasswordRequestDto(
+                            password = password,
+                        ),
+                    )
+                },
+                onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
+                    val parsed = errorParser.parse(rawErrorBody)
+                    val message = errorParser.extractMessage(parsed).orEmpty()
+                    when (statusCode) {
+                        400, 401 -> WrongPasswordFailure(
+                            detail = message.ifEmpty { "Incorrect account password." },
+                        )
+                        429 -> SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                        else -> null
+                    }
+                },
+                transform = { dto ->
+                    Ok(
+                        TwoFactorSetupSecret(
+                            secret = dto.twoFactorSecret,
+                            qrCodeUrl = dto.qrCodeUrl,
+                        )
+                    )
+                },
+            )
+        }
+    }
+
+    override suspend fun enableTwoFactor(
+        code: String,
+        password: String,
+    ): Result<Boolean> {
+        return sessionRepository.withValidSession { session ->
+            safeApiCaller.execute(
+                call = {
+                    apiService.enableTwoFactor(
+                        accountId = session.accountId.value,
+                        bearerToken = "Bearer ${session.accessToken}",
+                        request = TwoFactorCodePasswordRequestDto(
+                            code = code,
+                            password = password,
+                        ),
+                    )
+                },
+                onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
+                    val parsed = errorParser.parse(rawErrorBody)
+                    val message = errorParser.extractMessage(parsed).orEmpty()
+                    when (statusCode) {
+                        400, 401 -> {
+                            if (message.contains("password", ignoreCase = true)) {
+                                WrongPasswordFailure(
+                                    detail = message.ifEmpty { "Incorrect account password." },
+                                )
+                            } else {
+                                WrongTwoFactorCodeFailure(
+                                    detail = message.ifEmpty { "Incorrect verification code." },
+                                )
+                            }
+                        }
+                        429 -> SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                        else -> null
+                    }
+                },
+                transform = { dto ->
+                    Ok(dto.enabled)
+                },
+            )
+        }
+    }
+
+    override suspend fun disableTwoFactor(
+        code: String,
+        password: String,
+    ): Result<Boolean> {
+        return sessionRepository.withValidSession { session ->
+            safeApiCaller.execute(
+                call = {
+                    apiService.disableTwoFactor(
+                        accountId = session.accountId.value,
+                        bearerToken = "Bearer ${session.accessToken}",
+                        request = TwoFactorCodePasswordRequestDto(
+                            code = code,
+                            password = password,
+                        ),
+                    )
+                },
+                onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
+                    val parsed = errorParser.parse(rawErrorBody)
+                    val message = errorParser.extractMessage(parsed).orEmpty()
+                    when (statusCode) {
+                        400, 401 -> {
+                            if (message.contains("password", ignoreCase = true)) {
+                                WrongPasswordFailure(
+                                    detail = message.ifEmpty { "Incorrect account password." },
+                                )
+                            } else {
+                                WrongTwoFactorCodeFailure(
+                                    detail = message.ifEmpty { "Incorrect verification code." },
+                                )
+                            }
+                        }
+                        429 -> SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                        else -> null
+                    }
+                },
+                transform = { dto ->
+                    Ok(dto.enabled)
+                },
+            )
+        }
+    }
+}
