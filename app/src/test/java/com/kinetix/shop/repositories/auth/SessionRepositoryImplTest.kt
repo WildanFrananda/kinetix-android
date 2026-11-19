@@ -91,4 +91,48 @@ class SessionRepositoryImplTest {
         assertNull(repository.currentSession.value)
         assertNull(tokenStore.current)
     }
+
+    @Test
+    fun withValidSessionRenewsAndRetriesOnceOnUnauthorized() = runTest {
+        val clock = FakeClock(currentEpochSeconds = 1_700_000_000L)
+        val initialSession = StoredSession(
+            accessToken = "acc-expired",
+            refreshToken = "ref-1",
+            expiresAtEpochSeconds = 1_700_000_900L,
+            accountId = AccountId(10L),
+            principalId = PrincipalId("usr-10"),
+            email = "buyer@kinetix.test",
+        )
+        val renewedSession = initialSession.copy(
+            accessToken = "acc-fresh",
+            refreshToken = "ref-2",
+        )
+        val renewer = FakeSessionRenewer(nextResult = Ok(renewedSession))
+        val repository = SessionRepositoryImpl(
+            apiService = FakeIdentityApiService(),
+            safeApiCaller = safeApiCaller,
+            tokenStore = FakeTokenStore(current = initialSession),
+            sessionRenewer = renewer,
+            clock = clock,
+        )
+        repository.updateSession(initialSession)
+
+        val seenTokens = mutableListOf<String>()
+        val result = repository.withValidSession { session ->
+            seenTokens.add(session.accessToken)
+            if (session.accessToken == "acc-expired") {
+                com.kinetix.shop.core.result.Err(
+                    com.kinetix.shop.core.failure.UnauthorizedFailure("EXPIRED", "Expired")
+                )
+            } else {
+                Ok("ok-after-renew")
+            }
+        }
+
+        assertTrue(result is Ok)
+        assertEquals("ok-after-renew", (result as Ok).value)
+        assertEquals(listOf("acc-expired", "acc-fresh"), seenTokens)
+        assertEquals(1, renewer.renewCalls)
+        assertEquals(renewedSession, repository.currentSession.value)
+    }
 }

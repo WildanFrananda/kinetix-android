@@ -18,7 +18,7 @@ class ArchitectureAndLayoutGateTest {
     @Test
     fun enforcesZeroCommentsInAllKotlinAndGradleFiles() {
         val violations = mutableListOf<String>()
-        val commentPattern = Regex("""(^\s*//|/\*)""")
+        val commentPattern = Regex("""(^\s*//|/\*|(?<![:"'])\s+//)""")
         val files = allKotlinFiles(mainJavaRoot) +
             allKotlinFiles(testJavaRoot) +
             listOf(

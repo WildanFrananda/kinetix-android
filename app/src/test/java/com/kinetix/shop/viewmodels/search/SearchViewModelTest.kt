@@ -1,5 +1,6 @@
 package com.kinetix.shop.viewmodels.search
 
+import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.fakes.FakeSearchRepository
 import com.kinetix.shop.models.search.ProductSearchResult
@@ -8,6 +9,7 @@ import com.kinetix.shop.state.search.SearchLoadedUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -62,5 +64,37 @@ class SearchViewModelTest {
         assertEquals("keyboard", loaded.query)
         assertEquals("price_asc", loaded.selectedSort)
         assertTrue(loaded.searchResult.indexState.stale)
+    }
+
+    @Test
+    fun debouncesRapidSuggestionInputsBeforeQueryingRepository() = runTest(testDispatcher) {
+        val repository = FakeSearchRepository().apply {
+            suggestResult = Ok(listOf("keyboard", "keycap"))
+            searchResult = Ok(
+                ProductSearchResult(
+                    total = 0,
+                    hits = emptyList(),
+                    categoryFacets = emptyList(),
+                    indexState = SearchIndexState(
+                        indexedThroughEpochMillis = null,
+                        ageSeconds = null,
+                        stale = false,
+                    ),
+                )
+            )
+        }
+        val viewModel = SearchViewModel(repository)
+
+        viewModel.executeSearch(query = "k")
+        advanceUntilIdle()
+
+        viewModel.updateQueryAndSuggest("ke")
+        advanceTimeBy(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS / 2)
+        viewModel.updateQueryAndSuggest("key")
+        advanceTimeBy(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS + 50L)
+
+        val loaded = viewModel.uiState.value as SearchLoadedUiState
+        assertEquals("key", loaded.query)
+        assertEquals(listOf("keyboard", "keycap"), loaded.suggestions)
     }
 }

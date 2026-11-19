@@ -1,6 +1,5 @@
 package com.kinetix.shop.routes
 
-import com.kinetix.shop.models.ids.ProductSku
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -32,7 +31,7 @@ class AppRouterStateTest {
     @Test
     fun signOutPopsProtectedRoutesBackToPublicRoute() {
         val router = AppRouterState(initialRoute = HomeRoute)
-        val detailRoute = ProductDetailRoute(ProductSku("SKU-100"))
+        val detailRoute = ProductDetailRoute("SKU-100")
 
         router.navigateTo(
             destination = detailRoute,

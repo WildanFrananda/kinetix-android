@@ -2,8 +2,9 @@ package com.kinetix.shop.viewmodels.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kinetix.shop.core.failure.ClientValidationFailure
+import com.kinetix.shop.core.failure.ClientValidationReason
 import com.kinetix.shop.core.failure.SignInDelayedFailure
-import com.kinetix.shop.core.failure.ValidationFailure
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.time.DelayCountdownTimer
@@ -42,11 +43,7 @@ class SignInViewModel @Inject constructor(
         }
         if (email.isBlank() || password.isBlank()) {
             mutableState.value = FormErrorUiState(
-                ValidationFailure(
-                    code = "CREDENTIALS_REQUIRED",
-                    detail = "",
-                    field = "credentials",
-                )
+                ClientValidationFailure(ClientValidationReason.CREDENTIALS_REQUIRED)
             )
             return
         }

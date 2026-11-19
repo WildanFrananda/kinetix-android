@@ -30,6 +30,16 @@ class HomeCatalogViewModel @Inject constructor(
     private var activeCategorySlug: CategorySlug? = null
 
     fun loadInitialCatalog() {
+        if (mutableState.value is HomeCatalogLoadedUiState) {
+            return
+        }
+        loadPage(
+            categorySlug = activeCategorySlug,
+            page = 1,
+        )
+    }
+
+    fun refresh() {
         loadPage(
             categorySlug = activeCategorySlug,
             page = 1,

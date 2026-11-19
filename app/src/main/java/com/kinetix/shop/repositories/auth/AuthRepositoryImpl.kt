@@ -1,5 +1,6 @@
 package com.kinetix.shop.repositories.auth
 
+import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.failure.AdminAccountNotSupportedFailure
 import com.kinetix.shop.core.failure.ChallengeSpentFailure
 import com.kinetix.shop.core.failure.ConflictFailure
@@ -50,13 +51,17 @@ class AuthRepositoryImpl @Inject constructor(
             },
             onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
                 val parsed = errorParser.parse(rawErrorBody)
-                val message = errorParser.extractMessage(parsed)
+                val message = errorParser.extractMessage(parsed).orEmpty()
                 when (statusCode) {
                     409 -> ConflictFailure(
                         code = parsed?.error ?: "EMAIL_ALREADY_EXISTS",
-                        detail = message ?: "An account with this email already exists.",
+                        detail = message,
                     )
-                    429 -> SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                    429 -> SignInDelayedFailure(
+                        parsed?.retryAfterSeconds
+                            ?: retryAfterSeconds
+                            ?: NetworkPolicy.DEFAULT_RETRY_AFTER_SECONDS,
+                    )
                     else -> null
                 }
             },
@@ -82,7 +87,11 @@ class AuthRepositoryImpl @Inject constructor(
             onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
                 val parsed = errorParser.parse(rawErrorBody)
                 if (statusCode == 429) {
-                    SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                    SignInDelayedFailure(
+                        parsed?.retryAfterSeconds
+                            ?: retryAfterSeconds
+                            ?: NetworkPolicy.DEFAULT_RETRY_AFTER_SECONDS,
+                    )
                 } else {
                     null
                 }
@@ -93,14 +102,15 @@ class AuthRepositoryImpl @Inject constructor(
                 }
                 if (dto.mfaRequired == true) {
                     val token = dto.challengeToken
-                    if (token.isNullOrBlank()) {
-                        return@execute Err(UnreadableAnswerFailure("Missing MFA challenge token"))
+                    val expiresIn = dto.expiresIn
+                    if (token.isNullOrBlank() || expiresIn == null) {
+                        return@execute Err(UnreadableAnswerFailure("Incomplete MFA challenge payload"))
                     }
                     return@execute Ok(
                         SignInMfaChallenge(
                             challengeToken = token,
-                            expiresInSeconds = dto.expiresIn ?: 300L,
-                            passkeysAvailable = dto.passkeys ?: false,
+                            expiresInSeconds = expiresIn,
+                            passkeysAvailable = dto.passkeys == true,
                         )
                     )
                 }
@@ -157,7 +167,11 @@ class AuthRepositoryImpl @Inject constructor(
                 val errorCode = parsed?.error.orEmpty()
                 val message = errorParser.extractMessage(parsed).orEmpty()
                 when (statusCode) {
-                    429 -> SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                    429 -> SignInDelayedFailure(
+                        parsed?.retryAfterSeconds
+                            ?: retryAfterSeconds
+                            ?: NetworkPolicy.DEFAULT_RETRY_AFTER_SECONDS,
+                    )
                     401 -> {
                         if (
                             errorCode == "CHALLENGE_EXHAUSTED" ||
@@ -169,11 +183,11 @@ class AuthRepositoryImpl @Inject constructor(
                         ) {
                             ChallengeSpentFailure(
                                 code = errorCode.ifEmpty { "CHALLENGE_SPENT" },
-                                detail = message.ifEmpty { "Two-factor challenge expired." },
+                                detail = message,
                             )
                         } else {
                             WrongTwoFactorCodeFailure(
-                                detail = message.ifEmpty { "Incorrect verification code." },
+                                detail = message,
                             )
                         }
                     }

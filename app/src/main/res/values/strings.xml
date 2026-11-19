@@ -23,6 +23,7 @@
     <string name="error_unauthorized">Invalid email or password.</string>
     <string name="error_forbidden">Access denied.</string>
     <string name="error_not_found">Requested resource was not found.</string>
+    <string name="error_conflict">This request conflicts with existing account data.</string>
     <string name="error_timeout">Request timed out. Please try again.</string>
     <string name="error_unavailable">Service is temporarily unavailable.</string>
     <string name="error_network">Unable to reach Kinetix. Check your connection.</string>
@@ -79,6 +80,7 @@
 
     <string name="profile_title">Buyer Profile &amp; Delivery</string>
     <string name="profile_loading">Loading buyer profile…</string>
+    <string name="profile_not_created_hint">Complete your delivery details below so checkout can pre-fill your address.</string>
     <string name="profile_account_format">Account #%1$d • Principal: %2$s</string>
     <string name="profile_geocoded_format">Road coordinates: %1$.4f, %2$.4f</string>
     <string name="profile_saved_banner">Delivery profile updated.</string>

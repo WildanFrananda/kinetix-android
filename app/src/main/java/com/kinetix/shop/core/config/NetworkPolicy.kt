@@ -5,6 +5,9 @@ object NetworkPolicy {
     const val READ_TIMEOUT_SECONDS = 15L
     const val WRITE_TIMEOUT_SECONDS = 15L
     const val CALL_TIMEOUT_SECONDS = 20L
+    const val LOGOUT_TIMEOUT_MILLIS = 5_000L
+    const val PROACTIVE_REFRESH_MARGIN_SECONDS = 60L
+    const val DEFAULT_RETRY_AFTER_SECONDS = 60
     const val DEFAULT_PAGE_SIZE = 20
     const val MAX_PAGE_SIZE = 100
     const val DEFAULT_SUGGESTION_LIMIT = 5

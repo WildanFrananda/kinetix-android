@@ -1,5 +1,6 @@
 package com.kinetix.shop.repositories.auth
 
+import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.failure.UnauthorizedFailure
 import com.kinetix.shop.core.network.SafeApiCaller
 import com.kinetix.shop.core.result.Err
@@ -15,11 +16,15 @@ import com.kinetix.shop.services.remote.IdentityApiService
 import com.kinetix.shop.services.session.SessionRenewer
 import com.kinetix.shop.services.storage.TokenStore
 import java.time.Instant
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 @Singleton
 class SessionRepositoryImpl @Inject constructor(
@@ -106,12 +111,16 @@ class SessionRepositoryImpl @Inject constructor(
 
         if (current != null) {
             try {
-                apiService.logout(
-                    bearerToken = "Bearer ${current.accessToken}",
-                    request = LogoutRequestDto(
-                        refreshToken = current.refreshToken,
-                    ),
-                )
+                withTimeoutOrNull(NetworkPolicy.LOGOUT_TIMEOUT_MILLIS.milliseconds) {
+                    apiService.logout(
+                        bearerToken = "Bearer ${current.accessToken}",
+                        request = LogoutRequestDto(
+                            refreshToken = current.refreshToken,
+                        ),
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (_: Exception) {
             }
         }
@@ -130,7 +139,7 @@ class SessionRepositoryImpl @Inject constructor(
         } ?: return Err(
             UnauthorizedFailure(
                 code = "NOT_SIGNED_IN",
-                detail = "Not signed in",
+                detail = "",
             )
         )
 
@@ -175,7 +184,8 @@ class SessionRepositoryImpl @Inject constructor(
     private fun needsProactiveRefresh(
         session: StoredSession,
     ): Boolean {
-        return (session.expiresAtEpochSeconds - clock.nowEpochSeconds()) <= 60L
+        return (session.expiresAtEpochSeconds - clock.nowEpochSeconds()) <=
+            NetworkPolicy.PROACTIVE_REFRESH_MARGIN_SECONDS
     }
 
     private suspend fun verifyMe(
@@ -190,7 +200,7 @@ class SessionRepositoryImpl @Inject constructor(
             transform = { dto ->
                 val parsedExpirySeconds = try {
                     Instant.parse(dto.expiresAt).epochSecond
-                } catch (_: Exception) {
+                } catch (_: DateTimeParseException) {
                     session.expiresAtEpochSeconds
                 }
                 val updated = session.copy(

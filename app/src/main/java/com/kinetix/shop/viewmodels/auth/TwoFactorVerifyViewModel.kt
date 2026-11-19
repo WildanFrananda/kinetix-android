@@ -4,8 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.failure.ChallengeSpentFailure
+import com.kinetix.shop.core.failure.ClientValidationFailure
+import com.kinetix.shop.core.failure.ClientValidationReason
 import com.kinetix.shop.core.failure.SignInDelayedFailure
-import com.kinetix.shop.core.failure.ValidationFailure
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.time.DelayCountdownTimer
@@ -43,11 +44,7 @@ class TwoFactorVerifyViewModel @Inject constructor(
         val sanitized = code.trim()
         if (sanitized.length != NetworkPolicy.TOTP_CODE_LENGTH || sanitized.any { !it.isDigit() }) {
             mutableState.value = FormErrorUiState(
-                ValidationFailure(
-                    code = "INVALID_TOTP_CODE",
-                    detail = "",
-                    field = "code",
-                )
+                ClientValidationFailure(ClientValidationReason.INVALID_TOTP_CODE)
             )
             return
         }

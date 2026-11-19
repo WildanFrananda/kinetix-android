@@ -15,11 +15,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
 import com.kinetix.shop.models.ids.ProductSku
 import com.kinetix.shop.state.catalog.HomeCatalogErrorUiState
@@ -37,7 +37,7 @@ fun HomeScreen(
     viewModel: HomeCatalogViewModel,
     onSelectProduct: (ProductSku) -> Unit,
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.loadInitialCatalog()
@@ -57,7 +57,7 @@ fun HomeScreen(
             is HomeCatalogErrorUiState -> {
                 ErrorBannerBlock(
                     failure = current.failure,
-                    onRetry = { viewModel.loadInitialCatalog() },
+                    onRetry = { viewModel.refresh() },
                 )
             }
             is HomeCatalogLoadedUiState -> {

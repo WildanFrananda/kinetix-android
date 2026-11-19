@@ -1,5 +1,6 @@
 package com.kinetix.shop.repositories.catalog
 
+import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.result.Result
 import com.kinetix.shop.models.catalog.Category
 import com.kinetix.shop.models.catalog.ProductDetail
@@ -14,7 +15,7 @@ interface CatalogRepository {
         categorySlug: CategorySlug? = null,
         query: String? = null,
         page: Int = 1,
-        pageSize: Int = 20,
+        pageSize: Int = NetworkPolicy.DEFAULT_PAGE_SIZE,
     ): Result<ProductPage>
 
     suspend fun getProductDetail(
