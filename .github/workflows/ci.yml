@@ -77,11 +77,48 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
 
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Scan Gradle dependencies for critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - name: Generate SPDX SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: spdx-json
+          output: sbom.spdx.json
+          exit-code: "0"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.spdx.json
+          retention-days: 30
+
   verify:
-    needs: [test-and-lint, build]
+    needs: [test-and-lint, build, security]
     if: always()
     permissions: {}
     runs-on: ubuntu-latest
     steps:
-      - name: Require test-and-lint and build to succeed
-        run: test "${{ needs.test-and-lint.result }}" = success && test "${{ needs.build.result }}" = success
+      - name: Require test-and-lint, build, and security to succeed
+        run: |
+          test "${{ needs.test-and-lint.result }}" = success
+          test "${{ needs.build.result }}" = success
+          test "${{ needs.security.result }}" = success
