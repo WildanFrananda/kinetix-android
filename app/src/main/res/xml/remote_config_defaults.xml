@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<defaultsMap>
+    <entry>
+        <key>minimum_supported_version_code</key>
+        <value>1</value>
+    </entry>
+    <entry>
+        <key>force_update_enabled</key>
+        <value>false</value>
+    </entry>
+    <entry>
+        <key>checkout_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>wallet_topup_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>live_tracking_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>outbox_sync_enabled</key>
+        <value>true</value>
+    </entry>
+</defaultsMap>
