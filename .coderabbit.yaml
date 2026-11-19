@@ -1,0 +1,30 @@
+language: "en-US"
+reviews:
+  profile: "assertive"
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+      - "development"
+  path_filters:
+    - "!app/gradle.lockfile"
+    - "!settings-gradle.lockfile"
+    - "!gradle/wrapper/**"
+  path_instructions:
+    - path: "app/src/main/java/com/kinetix/shop/**"
+      instructions: |
+        - Enforce AGENTS.md strictly: zero comments (including trailing `//` comments) in `.kt` and `.kts` files.
+        - Enforce one top-level declaration per file matching the exact filename, organized under Option A feature subfolders (`core/`, `models/`, `dto/`, `services/`, `repositories/`, `state/`, `viewmodels/`, `ui/screens/`).
+        - Flag any `object XScreen` pattern (must be top-level `@Composable fun`), any `collectAsState()` instead of `collectAsStateWithLifecycle()`, any hardcoded user-facing English copy outside `strings.xml`, or any placeholder routes/features.
+        - Flag any raw `IOException` / `SocketTimeoutException` catch in `repositories/` (must delegate to `SafeApiCaller`), any `snake_case` DTO Kotlin properties without `@SerialName`, or any fabricated fallback values (`else -> ""`, `?: 300L`, etc.).
+        - Ensure `CancellationException` is never swallowed and logout enforces the 5-second timeout budget.
+    - path: "app/src/test/java/com/kinetix/shop/**"
+      instructions: |
+        - Verify only hand-written fakes in `fakes/` are used (no Mockito, MockK, or reflection mocking frameworks).
+        - Ensure new repositories, ViewModels, and error branches have meaningful tests without weakening assertions or `ArchitectureAndLayoutGateTest`.
+    - path: "app/build.gradle.kts"
+      instructions: |
+        - Ensure Compose BOM is applied consistently across `implementation` and `androidTestImplementation`, and dependency locking remains enabled.
+chat:
+  auto_reply: true

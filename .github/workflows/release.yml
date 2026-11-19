@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  KINETIX_HTTP_BASE: ${{ vars.KINETIX_HTTP_BASE }}
+  KINETIX_WS_BASE: ${{ vars.KINETIX_WS_BASE }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify release endpoint variables are configured
+        run: |
+          if [ -z "$KINETIX_HTTP_BASE" ] || [ -z "$KINETIX_WS_BASE" ]; then
+            echo "KINETIX_HTTP_BASE and KINETIX_WS_BASE repository variables must be set for release builds."
+            exit 1
+          fi
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run full verification and assemble release artifacts
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleRelease bundleRelease
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
