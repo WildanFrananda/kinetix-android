@@ -72,6 +72,7 @@ class ProductDetailViewModel @Inject constructor(
                     effectivePrice = product.price,
                     currency = product.currency,
                     appliedFlashSale = null,
+                    appliedDiscount = null,
                     applicableDiscounts = emptyList(),
                 )
             }

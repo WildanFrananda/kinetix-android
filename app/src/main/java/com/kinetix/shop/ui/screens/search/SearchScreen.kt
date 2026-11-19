@@ -22,7 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
 import com.kinetix.shop.models.ids.CategorySlug
 import com.kinetix.shop.models.ids.ProductSku
@@ -47,11 +48,22 @@ import java.math.RoundingMode
 
 @Composable
 fun SearchScreen(
+    initialQuery: String = "",
+    initialCategorySlug: CategorySlug? = null,
     viewModel: SearchViewModel,
     onSelectProduct: (ProductSku) -> Unit,
 ) {
-    val state by viewModel.uiState.collectAsState()
-    var queryInput by rememberSaveable { mutableStateOf("") }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var queryInput by rememberSaveable { mutableStateOf(initialQuery) }
+
+    LaunchedEffect(initialQuery, initialCategorySlug, state) {
+        if (state is SearchIdleUiState && (initialQuery.isNotBlank() || initialCategorySlug != null)) {
+            viewModel.executeSearch(
+                query = initialQuery,
+                categorySlug = initialCategorySlug,
+            )
+        }
+    }
 
     Column(
         modifier = Modifier

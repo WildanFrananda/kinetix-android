@@ -6,6 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -14,22 +19,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.kinetix.shop.R
 import com.kinetix.shop.repositories.auth.SessionRepository
-import com.kinetix.shop.routes.AppRouterState
-import com.kinetix.shop.routes.CartRoute
 import com.kinetix.shop.routes.HomeRoute
-import com.kinetix.shop.routes.OrderDetailRoute
-import com.kinetix.shop.routes.OrdersRoute
 import com.kinetix.shop.routes.ProductDetailRoute
 import com.kinetix.shop.routes.ProfileRoute
 import com.kinetix.shop.routes.RegisterRoute
@@ -37,7 +46,6 @@ import com.kinetix.shop.routes.SearchRoute
 import com.kinetix.shop.routes.SignInRoute
 import com.kinetix.shop.routes.TwoFactorSettingsRoute
 import com.kinetix.shop.routes.TwoFactorVerifyRoute
-import com.kinetix.shop.routes.WalletRoute
 import com.kinetix.shop.ui.screens.auth.RegisterScreen
 import com.kinetix.shop.ui.screens.auth.SignInScreen
 import com.kinetix.shop.ui.screens.auth.TwoFactorSettingsScreen
@@ -61,15 +69,59 @@ import kotlinx.coroutines.launch
 fun AppRootScreen(
     sessionRepository: SessionRepository,
 ) {
-    val router = remember { AppRouterState(initialRoute = HomeRoute) }
-    val currentRoute by router.currentRoute.collectAsState()
-    val currentSession by sessionRepository.currentSession.collectAsState()
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = backStackEntry?.destination
+    val currentSession by sessionRepository.currentSession.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+    var pendingAuthTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    var sessionRestored by rememberSaveable { mutableStateOf(false) }
 
     val isSignedIn = currentSession != null
+    val isOnHome = currentDestination?.hasRoute<HomeRoute>() == true
+    val isOnSearch = currentDestination?.hasRoute<SearchRoute>() == true
+    val isOnProfile = currentDestination?.hasRoute<ProfileRoute>() == true
+    val isOnTwoFactorSettings = currentDestination?.hasRoute<TwoFactorSettingsRoute>() == true
+    val isOnProfileOrAuth =
+        isOnProfile ||
+            currentDestination?.hasRoute<SignInRoute>() == true ||
+            currentDestination?.hasRoute<RegisterRoute>() == true
 
     LaunchedEffect(Unit) {
         sessionRepository.restoreSession()
+        sessionRestored = true
+    }
+
+    LaunchedEffect(sessionRestored, currentSession, currentDestination) {
+        if (!sessionRestored || currentSession != null) {
+            return@LaunchedEffect
+        }
+        if (isOnProfile) {
+            pendingAuthTarget = "profile"
+            navController.navigate(SignInRoute) {
+                popUpTo<ProfileRoute> { inclusive = true }
+                launchSingleTop = true
+            }
+        } else if (isOnTwoFactorSettings) {
+            pendingAuthTarget = "two_factor_settings"
+            navController.navigate(SignInRoute) {
+                popUpTo<TwoFactorSettingsRoute> { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    fun handleAuthenticated() {
+        val target = pendingAuthTarget
+        pendingAuthTarget = null
+        navController.popBackStack<SignInRoute>(inclusive = true)
+        when (target) {
+            "profile" -> navController.navigate(ProfileRoute) { launchSingleTop = true }
+            "two_factor_settings" -> navController.navigate(TwoFactorSettingsRoute) {
+                launchSingleTop = true
+            }
+            else -> Unit
+        }
     }
 
     Scaffold(
@@ -86,9 +138,9 @@ fun AppRootScreen(
                     style = MaterialTheme.typography.headlineMedium,
                     color = KinetixPalette.ElectricVolt,
                 )
-                if (currentRoute !is HomeRoute) {
+                if (!isOnHome && navController.previousBackStackEntry != null) {
                     TextButton(
-                        onClick = { router.navigateBack() },
+                        onClick = { navController.popBackStack() },
                     ) {
                         Text(
                             text = stringResource(R.string.nav_back),
@@ -103,21 +155,60 @@ fun AppRootScreen(
                 containerColor = KinetixPalette.ElevatedSlate,
             ) {
                 NavigationBarItem(
-                    selected = currentRoute is HomeRoute,
-                    onClick = { router.navigateTo(HomeRoute, isSignedIn) },
-                    icon = {},
+                    selected = isOnHome,
+                    onClick = {
+                        navController.navigate(HomeRoute) {
+                            popUpTo<HomeRoute> { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Home,
+                            contentDescription = stringResource(R.string.nav_home),
+                        )
+                    },
                     label = { Text(text = stringResource(R.string.nav_home)) },
                 )
                 NavigationBarItem(
-                    selected = currentRoute is SearchRoute,
-                    onClick = { router.navigateTo(SearchRoute(), isSignedIn) },
-                    icon = {},
+                    selected = isOnSearch,
+                    onClick = {
+                        navController.navigate(SearchRoute()) {
+                            launchSingleTop = true
+                        }
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = stringResource(R.string.nav_search),
+                        )
+                    },
                     label = { Text(text = stringResource(R.string.nav_search)) },
                 )
                 NavigationBarItem(
-                    selected = currentRoute is ProfileRoute || currentRoute is SignInRoute,
-                    onClick = { router.navigateTo(ProfileRoute, isSignedIn) },
-                    icon = {},
+                    selected = isOnProfileOrAuth,
+                    onClick = {
+                        if (isSignedIn) {
+                            navController.navigate(ProfileRoute) {
+                                launchSingleTop = true
+                            }
+                        } else {
+                            pendingAuthTarget = "profile"
+                            navController.navigate(SignInRoute) {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = if (isSignedIn) {
+                                stringResource(R.string.nav_profile)
+                            } else {
+                                stringResource(R.string.nav_sign_in)
+                            },
+                        )
+                    },
                     label = {
                         Text(
                             text = if (isSignedIn) {
@@ -136,92 +227,110 @@ fun AppRootScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            when (val route = currentRoute) {
-                is HomeRoute -> {
+            NavHost(
+                navController = navController,
+                startDestination = HomeRoute,
+            ) {
+                composable<HomeRoute> {
                     val viewModel: HomeCatalogViewModel = hiltViewModel()
                     HomeScreen(
                         viewModel = viewModel,
                         onSelectProduct = { sku ->
-                            router.navigateTo(ProductDetailRoute(sku), isSignedIn)
+                            navController.navigate(ProductDetailRoute(sku = sku.value))
                         },
                     )
                 }
-                is SearchRoute -> {
+                composable<SearchRoute> { entry ->
+                    val route = entry.toRoute<SearchRoute>()
                     val viewModel: SearchViewModel = hiltViewModel()
                     SearchScreen(
+                        initialQuery = route.initialQuery,
+                        initialCategorySlug = route.toCategorySlug(),
                         viewModel = viewModel,
                         onSelectProduct = { sku ->
-                            router.navigateTo(ProductDetailRoute(sku), isSignedIn)
+                            navController.navigate(ProductDetailRoute(sku = sku.value))
                         },
                     )
                 }
-                is ProductDetailRoute -> {
+                composable<ProductDetailRoute> { entry ->
+                    val route = entry.toRoute<ProductDetailRoute>()
                     val viewModel: ProductDetailViewModel = hiltViewModel()
                     ProductDetailScreen(
-                        sku = route.sku,
+                        sku = route.toProductSku(),
                         viewModel = viewModel,
                     )
                 }
-                is SignInRoute -> {
+                composable<SignInRoute> {
                     val viewModel: SignInViewModel = hiltViewModel()
                     SignInScreen(
                         viewModel = viewModel,
-                        onAuthenticated = { router.onAuthenticated() },
+                        onAuthenticated = { handleAuthenticated() },
                         onMfaChallenge = { challengeToken ->
-                            router.navigateTo(TwoFactorVerifyRoute(challengeToken), isSignedIn = false)
+                            navController.navigate(TwoFactorVerifyRoute(challengeToken))
                         },
                         onNavigateToRegister = {
-                            router.navigateTo(RegisterRoute, isSignedIn = false)
+                            navController.navigate(RegisterRoute) {
+                                launchSingleTop = true
+                            }
                         },
                     )
                 }
-                is RegisterRoute -> {
+                composable<RegisterRoute> {
                     val viewModel: RegisterViewModel = hiltViewModel()
                     RegisterScreen(
                         viewModel = viewModel,
-                        onRegistered = { router.onAuthenticated() },
+                        onRegistered = { handleAuthenticated() },
                         onNavigateToSignIn = {
-                            router.navigateTo(SignInRoute, isSignedIn = false)
+                            navController.popBackStack<SignInRoute>(inclusive = false)
                         },
                     )
                 }
-                is TwoFactorVerifyRoute -> {
+                composable<TwoFactorVerifyRoute> { entry ->
+                    val route = entry.toRoute<TwoFactorVerifyRoute>()
                     val viewModel: TwoFactorVerifyViewModel = hiltViewModel()
                     TwoFactorVerifyScreen(
                         challengeToken = route.challengeToken,
                         viewModel = viewModel,
-                        onVerified = { router.onAuthenticated() },
+                        onVerified = { handleAuthenticated() },
                         onChallengeExpired = {
-                            router.navigateTo(SignInRoute, isSignedIn = false)
+                            navController.popBackStack<SignInRoute>(inclusive = false)
                         },
                     )
                 }
-                is TwoFactorSettingsRoute -> {
-                    val viewModel: TwoFactorSettingsViewModel = hiltViewModel()
-                    TwoFactorSettingsScreen(
-                        viewModel = viewModel,
-                    )
+                composable<TwoFactorSettingsRoute> {
+                    if (currentSession != null) {
+                        val viewModel: TwoFactorSettingsViewModel = hiltViewModel()
+                        TwoFactorSettingsScreen(
+                            viewModel = viewModel,
+                        )
+                    }
                 }
-                is ProfileRoute,
-                is CartRoute,
-                is WalletRoute,
-                is OrdersRoute,
-                is OrderDetailRoute -> {
-                    val viewModel: ProfileViewModel = hiltViewModel()
-                    ProfileScreen(
-                        email = currentSession?.email.orEmpty(),
-                        principalId = currentSession?.principalId?.value.orEmpty(),
-                        viewModel = viewModel,
-                        onNavigateToTwoFactorSettings = {
-                            router.navigateTo(TwoFactorSettingsRoute, isSignedIn = true)
-                        },
-                        onSignOut = {
-                            coroutineScope.launch {
-                                sessionRepository.signOut()
-                                router.onSignedOut()
-                            }
-                        },
-                    )
+                composable<ProfileRoute> {
+                    val activeSession = currentSession
+                    if (activeSession != null) {
+                        val viewModel: ProfileViewModel = hiltViewModel()
+                        ProfileScreen(
+                            email = activeSession.email,
+                            accountId = activeSession.accountId.value,
+                            principalId = activeSession.principalId.value,
+                            viewModel = viewModel,
+                            onNavigateToTwoFactorSettings = {
+                                navController.navigate(TwoFactorSettingsRoute) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onSignOut = {
+                                coroutineScope.launch {
+                                    sessionRepository.signOut()
+                                    pendingAuthTarget = null
+                                    navController.navigate(HomeRoute) {
+                                        popUpTo<HomeRoute> { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }

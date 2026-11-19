@@ -1,6 +1,7 @@
 package com.kinetix.shop.architecture
 
 import java.io.File
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,9 +17,19 @@ class ArchitectureAndLayoutGateTest {
     )
 
     @Test
+    fun commentScannerHandlesStringsCharsUrlsAndTrailingComments() {
+        assertFalse(containsCommentOutsideLiterals("""val expected = "a // b""""))
+        assertFalse(containsCommentOutsideLiterals("""val url = "https://api.kinetix.invalid""""))
+        assertFalse(containsCommentOutsideLiterals("""val slash = '/'"""))
+        assertTrue(containsCommentOutsideLiterals("""val value = "x" // note"""))
+        assertTrue(containsCommentOutsideLiterals("""val c = '/' // note"""))
+        assertTrue(containsCommentOutsideLiterals("""foo() // trailing"""))
+        assertTrue(containsCommentOutsideLiterals("""/* block */"""))
+    }
+
+    @Test
     fun enforcesZeroCommentsInAllKotlinAndGradleFiles() {
         val violations = mutableListOf<String>()
-        val commentPattern = Regex("""(^\s*//|/\*)""")
         val files = allKotlinFiles(mainJavaRoot) +
             allKotlinFiles(testJavaRoot) +
             listOf(
@@ -38,7 +49,7 @@ class ArchitectureAndLayoutGateTest {
 
         files.filter { it.exists() && it.name != "ArchitectureAndLayoutGateTest.kt" }.forEach { file ->
             file.readLines().forEachIndexed { index, line ->
-                if (commentPattern.containsMatchIn(line)) {
+                if (containsCommentOutsideLiterals(line)) {
                     violations.add("${file.relativeTo(projectRoot)}:${index + 1} contains a comment")
                 }
             }
@@ -161,13 +172,14 @@ class ArchitectureAndLayoutGateTest {
     @Test
     fun forbidsDuplicatedNetworkTryCatchAndEmptyUrlFallbacks() {
         val violations = mutableListOf<String>()
+        val ioCatchRegex = Regex("""catch\s*\(\s*[A-Za-z0-9_]+\s*:\s*IOException\s*\)""")
         val reposDir = File(
             mainJavaRoot,
             "repositories",
         )
         allKotlinFiles(reposDir).forEach { file ->
             val text = file.readText()
-            if (text.contains("SocketTimeoutException") || text.contains("catch (exception: IOException)")) {
+            if (text.contains("SocketTimeoutException") || ioCatchRegex.containsMatchIn(text)) {
                 violations.add(
                     "${file.relativeTo(projectRoot)} contains raw IOException/SocketTimeoutException catch instead of delegating to SafeApiCaller"
                 )
@@ -191,6 +203,57 @@ class ArchitectureAndLayoutGateTest {
             "Found network/DI guardrail violations:\n${violations.joinToString("\n")}",
             violations.isEmpty(),
         )
+    }
+
+    private fun containsCommentOutsideLiterals(line: String): Boolean {
+        var inDoubleQuote = false
+        var inSingleQuote = false
+        var escaped = false
+        var index = 0
+        while (index < line.length) {
+            val ch = line[index]
+            if (escaped) {
+                escaped = false
+                index += 1
+                continue
+            }
+            if (inDoubleQuote) {
+                if (ch == '\\') {
+                    escaped = true
+                } else if (ch == '"') {
+                    inDoubleQuote = false
+                }
+                index += 1
+                continue
+            }
+            if (inSingleQuote) {
+                if (ch == '\\') {
+                    escaped = true
+                } else if (ch == '\'') {
+                    inSingleQuote = false
+                }
+                index += 1
+                continue
+            }
+            if (ch == '"') {
+                inDoubleQuote = true
+                index += 1
+                continue
+            }
+            if (ch == '\'') {
+                inSingleQuote = true
+                index += 1
+                continue
+            }
+            if (ch == '/' && index + 1 < line.length) {
+                val next = line[index + 1]
+                if (next == '/' || next == '*') {
+                    return true
+                }
+            }
+            index += 1
+        }
+        return false
     }
 
     private fun allKotlinFiles(dir: File): List<File> {

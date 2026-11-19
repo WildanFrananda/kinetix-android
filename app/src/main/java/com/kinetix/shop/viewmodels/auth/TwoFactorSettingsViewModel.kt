@@ -3,8 +3,9 @@ package com.kinetix.shop.viewmodels.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kinetix.shop.core.config.NetworkPolicy
+import com.kinetix.shop.core.failure.ClientValidationFailure
+import com.kinetix.shop.core.failure.ClientValidationReason
 import com.kinetix.shop.core.failure.SignInDelayedFailure
-import com.kinetix.shop.core.failure.ValidationFailure
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.time.DelayCountdownTimer
@@ -40,11 +41,7 @@ class TwoFactorSettingsViewModel @Inject constructor(
         }
         if (password.isBlank()) {
             mutableState.value = TwoFactorSettingsErrorUiState(
-                ValidationFailure(
-                    code = "PASSWORD_REQUIRED",
-                    detail = "",
-                    field = "password",
-                )
+                ClientValidationFailure(ClientValidationReason.PASSWORD_REQUIRED)
             )
             return
         }
@@ -75,18 +72,16 @@ class TwoFactorSettingsViewModel @Inject constructor(
         if (current is TwoFactorSettingsSubmittingUiState || current is TwoFactorSettingsDelayedUiState) {
             return
         }
-        val cleanCode = code.trim()
-        if (
-            cleanCode.length != NetworkPolicy.TOTP_CODE_LENGTH ||
-            cleanCode.any { !it.isDigit() } ||
-            password.isBlank()
-        ) {
+        if (password.isBlank()) {
             mutableState.value = TwoFactorSettingsErrorUiState(
-                ValidationFailure(
-                    code = "INVALID_TOTP_CODE",
-                    detail = "",
-                    field = "code",
-                )
+                ClientValidationFailure(ClientValidationReason.PASSWORD_REQUIRED)
+            )
+            return
+        }
+        val cleanCode = code.trim()
+        if (cleanCode.length != NetworkPolicy.TOTP_CODE_LENGTH || cleanCode.any { !it.isDigit() }) {
+            mutableState.value = TwoFactorSettingsErrorUiState(
+                ClientValidationFailure(ClientValidationReason.INVALID_TOTP_CODE)
             )
             return
         }
@@ -117,18 +112,16 @@ class TwoFactorSettingsViewModel @Inject constructor(
         if (current is TwoFactorSettingsSubmittingUiState || current is TwoFactorSettingsDelayedUiState) {
             return
         }
-        val cleanCode = code.trim()
-        if (
-            cleanCode.length != NetworkPolicy.TOTP_CODE_LENGTH ||
-            cleanCode.any { !it.isDigit() } ||
-            password.isBlank()
-        ) {
+        if (password.isBlank()) {
             mutableState.value = TwoFactorSettingsErrorUiState(
-                ValidationFailure(
-                    code = "INVALID_TOTP_CODE",
-                    detail = "",
-                    field = "code",
-                )
+                ClientValidationFailure(ClientValidationReason.PASSWORD_REQUIRED)
+            )
+            return
+        }
+        val cleanCode = code.trim()
+        if (cleanCode.length != NetworkPolicy.TOTP_CODE_LENGTH || cleanCode.any { !it.isDigit() }) {
+            mutableState.value = TwoFactorSettingsErrorUiState(
+                ClientValidationFailure(ClientValidationReason.INVALID_TOTP_CODE)
             )
             return
         }

@@ -1,5 +1,6 @@
 package com.kinetix.shop.repositories.auth
 
+import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.failure.SignInDelayedFailure
 import com.kinetix.shop.core.failure.WrongPasswordFailure
 import com.kinetix.shop.core.failure.WrongTwoFactorCodeFailure
@@ -40,9 +41,13 @@ class TwoFactorRepositoryImpl @Inject constructor(
                     val message = errorParser.extractMessage(parsed).orEmpty()
                     when (statusCode) {
                         400, 401 -> WrongPasswordFailure(
-                            detail = message.ifEmpty { "Incorrect account password." },
+                            detail = message,
                         )
-                        429 -> SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                        429 -> SignInDelayedFailure(
+                            parsed?.retryAfterSeconds
+                                ?: retryAfterSeconds
+                                ?: NetworkPolicy.DEFAULT_RETRY_AFTER_SECONDS,
+                        )
                         else -> null
                     }
                 },
@@ -80,16 +85,16 @@ class TwoFactorRepositoryImpl @Inject constructor(
                     when (statusCode) {
                         400, 401 -> {
                             if (message.contains("password", ignoreCase = true)) {
-                                WrongPasswordFailure(
-                                    detail = message.ifEmpty { "Incorrect account password." },
-                                )
+                                WrongPasswordFailure(detail = message)
                             } else {
-                                WrongTwoFactorCodeFailure(
-                                    detail = message.ifEmpty { "Incorrect verification code." },
-                                )
+                                WrongTwoFactorCodeFailure(detail = message)
                             }
                         }
-                        429 -> SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                        429 -> SignInDelayedFailure(
+                            parsed?.retryAfterSeconds
+                                ?: retryAfterSeconds
+                                ?: NetworkPolicy.DEFAULT_RETRY_AFTER_SECONDS,
+                        )
                         else -> null
                     }
                 },
@@ -122,16 +127,16 @@ class TwoFactorRepositoryImpl @Inject constructor(
                     when (statusCode) {
                         400, 401 -> {
                             if (message.contains("password", ignoreCase = true)) {
-                                WrongPasswordFailure(
-                                    detail = message.ifEmpty { "Incorrect account password." },
-                                )
+                                WrongPasswordFailure(detail = message)
                             } else {
-                                WrongTwoFactorCodeFailure(
-                                    detail = message.ifEmpty { "Incorrect verification code." },
-                                )
+                                WrongTwoFactorCodeFailure(detail = message)
                             }
                         }
-                        429 -> SignInDelayedFailure(parsed?.retryAfterSeconds ?: retryAfterSeconds ?: 60)
+                        429 -> SignInDelayedFailure(
+                            parsed?.retryAfterSeconds
+                                ?: retryAfterSeconds
+                                ?: NetworkPolicy.DEFAULT_RETRY_AFTER_SECONDS,
+                        )
                         else -> null
                     }
                 },

@@ -16,13 +16,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
 import com.kinetix.shop.models.catalog.StockStatus
 import com.kinetix.shop.models.ids.ProductSku
@@ -40,7 +40,7 @@ fun ProductDetailScreen(
     sku: ProductSku,
     viewModel: ProductDetailViewModel,
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(sku) {
         viewModel.loadProduct(sku)
@@ -128,12 +128,12 @@ fun ProductDetailScreen(
                             )
                         }
 
-                        val primaryDiscount = priceIndication.applicableDiscounts.firstOrNull()
-                        if (primaryDiscount != null) {
+                        val appliedDiscount = priceIndication.appliedDiscount
+                        if (appliedDiscount != null) {
                             Text(
                                 text = stringResource(
                                     R.string.product_detail_discount_badge,
-                                    primaryDiscount.title,
+                                    appliedDiscount.title,
                                 ),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = KinetixPalette.SuccessEmerald,

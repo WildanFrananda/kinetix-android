@@ -2,7 +2,9 @@ package com.kinetix.shop.viewmodels.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kinetix.shop.core.failure.ValidationFailure
+import com.kinetix.shop.core.failure.ClientValidationFailure
+import com.kinetix.shop.core.failure.ClientValidationReason
+import com.kinetix.shop.core.failure.NotFoundFailure
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.models.profile.UpdateDeliveryProfileInput
@@ -34,7 +36,11 @@ class ProfileViewModel @Inject constructor(
                     mutableState.value = ProfileLoadedUiState(profile = result.value)
                 }
                 is Err -> {
-                    mutableState.value = ProfileErrorUiState(failure = result.failure)
+                    if (result.failure is NotFoundFailure) {
+                        mutableState.value = ProfileLoadedUiState(profile = null)
+                    } else {
+                        mutableState.value = ProfileErrorUiState(failure = result.failure)
+                    }
                 }
             }
         }
@@ -47,11 +53,11 @@ class ProfileViewModel @Inject constructor(
         cityInput: String,
         postalCodeInput: String,
     ) {
-        val currentLoaded = when (val state = mutableState.value) {
-            is ProfileLoadedUiState -> state.profile
-            is ProfileSavingUiState -> return
-            else -> null
-        } ?: return
+        val currentState = mutableState.value
+        if (currentState !is ProfileLoadedUiState) {
+            return
+        }
+        val existingProfile = currentState.profile
 
         val trimmedName = fullNameInput.trim()
         val trimmedPhone = phoneNumberInput.trim()
@@ -67,28 +73,36 @@ class ProfileViewModel @Inject constructor(
             trimmedPostal.isEmpty()
         ) {
             mutableState.value = ProfileLoadedUiState(
-                profile = currentLoaded,
-                errorFailure = ValidationFailure(
-                    code = "PROFILE_FIELDS_REQUIRED",
-                    detail = "",
-                    field = "profile",
+                profile = existingProfile,
+                errorFailure = ClientValidationFailure(
+                    ClientValidationReason.PROFILE_FIELDS_REQUIRED,
                 ),
             )
             return
         }
 
-        val input = UpdateDeliveryProfileInput(
-            fullName = trimmedName.takeIf { it != currentLoaded.fullName },
-            phoneNumber = trimmedPhone.takeIf { it != currentLoaded.phoneNumber },
-            streetAddress = trimmedStreet.takeIf { it != currentLoaded.streetAddress },
-            city = trimmedCity.takeIf { it != currentLoaded.city },
-            postalCode = trimmedPostal.takeIf { it != currentLoaded.postalCode },
-        )
+        val input = if (existingProfile == null) {
+            UpdateDeliveryProfileInput(
+                fullName = trimmedName,
+                phoneNumber = trimmedPhone,
+                streetAddress = trimmedStreet,
+                city = trimmedCity,
+                postalCode = trimmedPostal,
+            )
+        } else {
+            UpdateDeliveryProfileInput(
+                fullName = trimmedName.takeIf { it != existingProfile.fullName },
+                phoneNumber = trimmedPhone.takeIf { it != existingProfile.phoneNumber },
+                streetAddress = trimmedStreet.takeIf { it != existingProfile.streetAddress },
+                city = trimmedCity.takeIf { it != existingProfile.city },
+                postalCode = trimmedPostal.takeIf { it != existingProfile.postalCode },
+            )
+        }
         if (!input.hasChanges()) {
             return
         }
 
-        mutableState.value = ProfileSavingUiState(currentLoaded)
+        mutableState.value = ProfileSavingUiState(existingProfile)
         viewModelScope.launch {
             when (val result = profileRepository.updateProfile(input)) {
                 is Ok -> {
@@ -99,7 +113,7 @@ class ProfileViewModel @Inject constructor(
                 }
                 is Err -> {
                     mutableState.value = ProfileLoadedUiState(
-                        profile = currentLoaded,
+                        profile = existingProfile,
                         errorFailure = result.failure,
                     )
                 }

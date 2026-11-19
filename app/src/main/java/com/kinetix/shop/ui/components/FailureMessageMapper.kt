@@ -3,8 +3,11 @@ package com.kinetix.shop.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.kinetix.shop.R
+import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.failure.AdminAccountNotSupportedFailure
 import com.kinetix.shop.core.failure.ChallengeSpentFailure
+import com.kinetix.shop.core.failure.ClientValidationFailure
+import com.kinetix.shop.core.failure.ClientValidationReason
 import com.kinetix.shop.core.failure.ConflictFailure
 import com.kinetix.shop.core.failure.Failure
 import com.kinetix.shop.core.failure.ForbiddenFailure
@@ -47,24 +50,38 @@ object FailureMessageMapper {
             is NotFoundFailure -> {
                 failure.detail.ifBlank { stringResource(R.string.error_not_found) }
             }
-            is ConflictFailure -> failure.detail
+            is ConflictFailure -> {
+                failure.detail.ifBlank { stringResource(R.string.error_conflict) }
+            }
             is RateLimitedFailure -> stringResource(
                 R.string.error_rate_limited,
-                failure.retryAfterSeconds ?: 60,
+                failure.retryAfterSeconds ?: NetworkPolicy.DEFAULT_RETRY_AFTER_SECONDS,
             )
             is SignInDelayedFailure -> stringResource(
                 R.string.error_rate_limited,
                 failure.retryAfterSeconds,
             )
-            is ValidationFailure -> {
-                when (failure.code) {
-                    "CREDENTIALS_REQUIRED" -> stringResource(R.string.error_credentials_required)
-                    "PASSWORD_TOO_SHORT" -> stringResource(R.string.error_password_too_short)
-                    "INVALID_TOTP_CODE" -> stringResource(R.string.error_invalid_totp_code)
-                    "PASSWORD_REQUIRED" -> stringResource(R.string.error_password_required)
-                    "PROFILE_FIELDS_REQUIRED" -> stringResource(R.string.error_profile_fields_required)
-                    else -> failure.detail.ifBlank { stringResource(R.string.error_validation_generic) }
+            is ClientValidationFailure -> {
+                when (failure.reason) {
+                    ClientValidationReason.CREDENTIALS_REQUIRED -> {
+                        stringResource(R.string.error_credentials_required)
+                    }
+                    ClientValidationReason.PASSWORD_TOO_SHORT -> {
+                        stringResource(R.string.error_password_too_short)
+                    }
+                    ClientValidationReason.INVALID_TOTP_CODE -> {
+                        stringResource(R.string.error_invalid_totp_code)
+                    }
+                    ClientValidationReason.PASSWORD_REQUIRED -> {
+                        stringResource(R.string.error_password_required)
+                    }
+                    ClientValidationReason.PROFILE_FIELDS_REQUIRED -> {
+                        stringResource(R.string.error_profile_fields_required)
+                    }
                 }
+            }
+            is ValidationFailure -> {
+                failure.detail.ifBlank { stringResource(R.string.error_validation_generic) }
             }
             is TimeoutFailure -> stringResource(R.string.error_timeout)
             is UnavailableFailure -> stringResource(R.string.error_unavailable)

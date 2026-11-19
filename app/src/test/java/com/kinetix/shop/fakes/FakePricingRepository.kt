@@ -38,6 +38,7 @@ class FakePricingRepository : PricingRepository {
                 effectivePrice = catalogPrice,
                 currency = currency,
                 appliedFlashSale = null,
+                appliedDiscount = null,
                 applicableDiscounts = emptyList(),
             )
         )

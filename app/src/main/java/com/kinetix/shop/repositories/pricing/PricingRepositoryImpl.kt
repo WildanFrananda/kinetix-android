@@ -122,6 +122,7 @@ class PricingRepositoryImpl @Inject constructor(
                         effectivePrice = flashDecimal.toPlainString(),
                         currency = currency,
                         appliedFlashSale = flashSale,
+                        appliedDiscount = null,
                         applicableDiscounts = emptyList(),
                     )
                 )
@@ -145,6 +146,7 @@ class PricingRepositoryImpl @Inject constructor(
         }
 
         var bestDecimal = baseDecimal
+        var bestDiscount: PromotionDiscount? = null
         for (discount in matchingDiscounts) {
             val discountVal = discount.value.toBigDecimalOrNull() ?: continue
             val discountedDecimal = when (discount.discountType) {
@@ -160,6 +162,7 @@ class PricingRepositoryImpl @Inject constructor(
             }
             if (discountedDecimal < bestDecimal) {
                 bestDecimal = discountedDecimal
+                bestDiscount = discount
             }
         }
 
@@ -169,6 +172,7 @@ class PricingRepositoryImpl @Inject constructor(
                 effectivePrice = bestDecimal.toPlainString(),
                 currency = currency,
                 appliedFlashSale = null,
+                appliedDiscount = bestDiscount,
                 applicableDiscounts = matchingDiscounts,
             )
         )

@@ -51,4 +51,29 @@ class TwoFactorSettingsViewModelTest {
         advanceUntilIdle()
         assertEquals(TwoFactorSettingsCompletedUiState(enabled = true), viewModel.uiState.value)
     }
+
+    @Test
+    fun reportsPasswordRequiredSeparatelyFromInvalidTotpCode() = runTest(testDispatcher) {
+        val viewModel = TwoFactorSettingsViewModel(FakeTwoFactorRepository())
+
+        viewModel.enableTwoFactor("123456", "   ")
+        assertEquals(
+            com.kinetix.shop.state.auth.TwoFactorSettingsErrorUiState(
+                com.kinetix.shop.core.failure.ClientValidationFailure(
+                    com.kinetix.shop.core.failure.ClientValidationReason.PASSWORD_REQUIRED
+                )
+            ),
+            viewModel.uiState.value,
+        )
+
+        viewModel.disableTwoFactor("123456", "")
+        assertEquals(
+            com.kinetix.shop.state.auth.TwoFactorSettingsErrorUiState(
+                com.kinetix.shop.core.failure.ClientValidationFailure(
+                    com.kinetix.shop.core.failure.ClientValidationReason.PASSWORD_REQUIRED
+                )
+            ),
+            viewModel.uiState.value,
+        )
+    }
 }

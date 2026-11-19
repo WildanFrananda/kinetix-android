@@ -39,6 +39,7 @@ class AuthRepositoryImplTest {
                     LoginResponseDto(
                         mfaRequired = true,
                         challengeToken = "chal-token-99",
+                        expiresIn = 300L,
                         passkeys = false,
                     )
                 )
