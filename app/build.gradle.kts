@@ -132,6 +132,17 @@ dependencyLocking {
     lockAllConfigurations()
 }
 
+configurations.configureEach {
+    resolutionStrategy.dependencySubstitution {
+        all {
+            val module = requested as? ModuleComponentSelector
+            if (module != null && module.group == "org.bouncycastle" && module.version == "1.80.2") {
+                useTarget("${module.group}:${module.module}:1.85", "Mitigate CVE-2026-8763")
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
