@@ -27,6 +27,24 @@ val wsBaseConfig = providers.gradleProperty("KINETIX_WS_BASE")
     .orElse(providers.provider { localProperties.getProperty("KINETIX_WS_BASE") })
     .getOrElse("")
 
+val releaseStoreFile = providers.environmentVariable("KINETIX_RELEASE_STORE_FILE")
+    .orElse(providers.gradleProperty("KINETIX_RELEASE_STORE_FILE"))
+    .orNull
+val releaseStorePassword = providers.environmentVariable("KINETIX_RELEASE_STORE_PASSWORD")
+    .orElse(providers.gradleProperty("KINETIX_RELEASE_STORE_PASSWORD"))
+    .orNull
+val releaseKeyAlias = providers.environmentVariable("KINETIX_RELEASE_KEY_ALIAS")
+    .orElse(providers.gradleProperty("KINETIX_RELEASE_KEY_ALIAS"))
+    .orNull
+val releaseKeyPassword = providers.environmentVariable("KINETIX_RELEASE_KEY_PASSWORD")
+    .orElse(providers.gradleProperty("KINETIX_RELEASE_KEY_PASSWORD"))
+    .orNull
+val hasReleaseSigning =
+    !releaseStoreFile.isNullOrBlank() &&
+        !releaseStorePassword.isNullOrBlank() &&
+        !releaseKeyAlias.isNullOrBlank() &&
+        !releaseKeyPassword.isNullOrBlank()
+
 android {
     namespace = "com.kinetix.shop"
 
@@ -54,8 +72,22 @@ android {
         )
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             optimization {
                 enable = true
                 packageScope = setOf(

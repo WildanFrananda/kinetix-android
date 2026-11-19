@@ -90,11 +90,47 @@ class SearchViewModelTest {
 
         viewModel.updateQueryAndSuggest("ke")
         advanceTimeBy(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS / 2)
+        assertTrue(repository.suggestQueries.isEmpty())
+
         viewModel.updateQueryAndSuggest("key")
-        advanceTimeBy(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS + 50L)
+        advanceTimeBy(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS - 1L)
+        assertTrue(repository.suggestQueries.isEmpty())
+
+        advanceTimeBy(50L)
+        assertEquals(listOf("key"), repository.suggestQueries)
 
         val loaded = viewModel.uiState.value as SearchLoadedUiState
         assertEquals("key", loaded.query)
         assertEquals(listOf("keyboard", "keycap"), loaded.suggestions)
+    }
+
+    @Test
+    fun executeSearchWithDifferentQueryCancelsPendingSuggestions() = runTest(testDispatcher) {
+        val repository = FakeSearchRepository().apply {
+            suggestResult = Ok(listOf("ke-suggestion"))
+            searchResult = Ok(
+                ProductSearchResult(
+                    total = 0,
+                    hits = emptyList(),
+                    categoryFacets = emptyList(),
+                    indexState = SearchIndexState(
+                        indexedThroughEpochMillis = null,
+                        ageSeconds = null,
+                        stale = false,
+                    ),
+                )
+            )
+        }
+        val viewModel = SearchViewModel(repository)
+
+        viewModel.updateQueryAndSuggest("ke")
+        advanceTimeBy(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS / 2)
+        viewModel.executeSearch(query = "keyboard")
+        advanceUntilIdle()
+
+        assertTrue(repository.suggestQueries.isEmpty())
+        val loaded = viewModel.uiState.value as SearchLoadedUiState
+        assertEquals("keyboard", loaded.query)
+        assertTrue(loaded.suggestions.isEmpty())
     }
 }

@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
@@ -44,7 +43,7 @@ class SearchViewModel @Inject constructor(
         currentQuery = query
         suggestJob?.cancel()
         suggestJob = viewModelScope.launch {
-            delay(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS.milliseconds)
+            delay(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS)
             val suggestions = when (
                 val suggestResult = searchRepository.suggest(
                     query = query,
@@ -53,6 +52,9 @@ class SearchViewModel @Inject constructor(
             ) {
                 is Ok -> suggestResult.value
                 is Err -> emptyList()
+            }
+            if (currentQuery != query) {
+                return@launch
             }
             currentSuggestions = suggestions
             val loaded = mutableState.value as? SearchLoadedUiState
@@ -71,6 +73,10 @@ class SearchViewModel @Inject constructor(
         sort: String? = currentSort,
         offset: Int = 0,
     ) {
+        if (query != currentQuery) {
+            suggestJob?.cancel()
+            currentSuggestions = emptyList()
+        }
         currentQuery = query
         currentCategory = categorySlug
         currentSort = sort

@@ -55,11 +55,9 @@ fun SearchScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var queryInput by rememberSaveable { mutableStateOf(initialQuery) }
-    var initialExecuted by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(initialQuery, initialCategorySlug) {
-        if (!initialExecuted && (initialQuery.isNotBlank() || initialCategorySlug != null)) {
-            initialExecuted = true
+    LaunchedEffect(initialQuery, initialCategorySlug, state) {
+        if (state is SearchIdleUiState && (initialQuery.isNotBlank() || initialCategorySlug != null)) {
             viewModel.executeSearch(
                 query = initialQuery,
                 categorySlug = initialCategorySlug,

@@ -18,11 +18,13 @@ class FakeSearchRepository : SearchRepository {
     var lastSearchCategory: CategorySlug? = null
     var lastSearchSort: String? = null
     var lastSearchOffset: Int = 0
+    val suggestQueries = mutableListOf<String>()
 
     override suspend fun suggest(
         query: String,
         limit: Int,
     ): Result<List<String>> {
+        suggestQueries.add(query)
         return suggestResult
     }
 

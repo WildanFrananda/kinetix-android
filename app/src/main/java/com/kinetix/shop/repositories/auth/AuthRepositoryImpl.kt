@@ -104,7 +104,7 @@ class AuthRepositoryImpl @Inject constructor(
                     val token = dto.challengeToken
                     val expiresIn = dto.expiresIn
                     if (token.isNullOrBlank() || expiresIn == null) {
-                        return@execute Err(UnreadableAnswerFailure("Incomplete MFA challenge payload"))
+                        return@execute Err(UnreadableAnswerFailure(""))
                     }
                     return@execute Ok(
                         SignInMfaChallenge(
@@ -124,7 +124,7 @@ class AuthRepositoryImpl @Inject constructor(
                     expiresIn == null ||
                     user == null
                 ) {
-                    return@execute Err(UnreadableAnswerFailure("Incomplete authentication payload"))
+                    return@execute Err(UnreadableAnswerFailure(""))
                 }
                 if (user.role.equals("admin", ignoreCase = true)) {
                     return@execute Err(AdminAccountNotSupportedFailure)

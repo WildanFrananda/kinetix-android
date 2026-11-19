@@ -72,12 +72,14 @@ class TwoFactorSettingsViewModel @Inject constructor(
         if (current is TwoFactorSettingsSubmittingUiState || current is TwoFactorSettingsDelayedUiState) {
             return
         }
+        if (password.isBlank()) {
+            mutableState.value = TwoFactorSettingsErrorUiState(
+                ClientValidationFailure(ClientValidationReason.PASSWORD_REQUIRED)
+            )
+            return
+        }
         val cleanCode = code.trim()
-        if (
-            cleanCode.length != NetworkPolicy.TOTP_CODE_LENGTH ||
-            cleanCode.any { !it.isDigit() } ||
-            password.isBlank()
-        ) {
+        if (cleanCode.length != NetworkPolicy.TOTP_CODE_LENGTH || cleanCode.any { !it.isDigit() }) {
             mutableState.value = TwoFactorSettingsErrorUiState(
                 ClientValidationFailure(ClientValidationReason.INVALID_TOTP_CODE)
             )
@@ -110,12 +112,14 @@ class TwoFactorSettingsViewModel @Inject constructor(
         if (current is TwoFactorSettingsSubmittingUiState || current is TwoFactorSettingsDelayedUiState) {
             return
         }
+        if (password.isBlank()) {
+            mutableState.value = TwoFactorSettingsErrorUiState(
+                ClientValidationFailure(ClientValidationReason.PASSWORD_REQUIRED)
+            )
+            return
+        }
         val cleanCode = code.trim()
-        if (
-            cleanCode.length != NetworkPolicy.TOTP_CODE_LENGTH ||
-            cleanCode.any { !it.isDigit() } ||
-            password.isBlank()
-        ) {
+        if (cleanCode.length != NetworkPolicy.TOTP_CODE_LENGTH || cleanCode.any { !it.isDigit() }) {
             mutableState.value = TwoFactorSettingsErrorUiState(
                 ClientValidationFailure(ClientValidationReason.INVALID_TOTP_CODE)
             )

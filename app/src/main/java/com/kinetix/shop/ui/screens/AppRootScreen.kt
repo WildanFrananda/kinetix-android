@@ -75,17 +75,40 @@ fun AppRootScreen(
     val currentSession by sessionRepository.currentSession.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
     var pendingAuthTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    var sessionRestored by rememberSaveable { mutableStateOf(false) }
 
     val isSignedIn = currentSession != null
     val isOnHome = currentDestination?.hasRoute<HomeRoute>() == true
     val isOnSearch = currentDestination?.hasRoute<SearchRoute>() == true
+    val isOnProfile = currentDestination?.hasRoute<ProfileRoute>() == true
+    val isOnTwoFactorSettings = currentDestination?.hasRoute<TwoFactorSettingsRoute>() == true
     val isOnProfileOrAuth =
-        currentDestination?.hasRoute<ProfileRoute>() == true ||
+        isOnProfile ||
             currentDestination?.hasRoute<SignInRoute>() == true ||
             currentDestination?.hasRoute<RegisterRoute>() == true
 
     LaunchedEffect(Unit) {
         sessionRepository.restoreSession()
+        sessionRestored = true
+    }
+
+    LaunchedEffect(sessionRestored, currentSession, currentDestination) {
+        if (!sessionRestored || currentSession != null) {
+            return@LaunchedEffect
+        }
+        if (isOnProfile) {
+            pendingAuthTarget = "profile"
+            navController.navigate(SignInRoute) {
+                popUpTo<ProfileRoute> { inclusive = true }
+                launchSingleTop = true
+            }
+        } else if (isOnTwoFactorSettings) {
+            pendingAuthTarget = "two_factor_settings"
+            navController.navigate(SignInRoute) {
+                popUpTo<TwoFactorSettingsRoute> { inclusive = true }
+                launchSingleTop = true
+            }
+        }
     }
 
     fun handleAuthenticated() {
@@ -275,34 +298,39 @@ fun AppRootScreen(
                     )
                 }
                 composable<TwoFactorSettingsRoute> {
-                    val viewModel: TwoFactorSettingsViewModel = hiltViewModel()
-                    TwoFactorSettingsScreen(
-                        viewModel = viewModel,
-                    )
+                    if (currentSession != null) {
+                        val viewModel: TwoFactorSettingsViewModel = hiltViewModel()
+                        TwoFactorSettingsScreen(
+                            viewModel = viewModel,
+                        )
+                    }
                 }
                 composable<ProfileRoute> {
-                    val viewModel: ProfileViewModel = hiltViewModel()
-                    ProfileScreen(
-                        email = currentSession?.email.orEmpty(),
-                        accountId = currentSession?.accountId?.value,
-                        principalId = currentSession?.principalId?.value.orEmpty(),
-                        viewModel = viewModel,
-                        onNavigateToTwoFactorSettings = {
-                            navController.navigate(TwoFactorSettingsRoute) {
-                                launchSingleTop = true
-                            }
-                        },
-                        onSignOut = {
-                            coroutineScope.launch {
-                                sessionRepository.signOut()
-                                pendingAuthTarget = null
-                                navController.navigate(HomeRoute) {
-                                    popUpTo<HomeRoute> { inclusive = true }
+                    val activeSession = currentSession
+                    if (activeSession != null) {
+                        val viewModel: ProfileViewModel = hiltViewModel()
+                        ProfileScreen(
+                            email = activeSession.email,
+                            accountId = activeSession.accountId.value,
+                            principalId = activeSession.principalId.value,
+                            viewModel = viewModel,
+                            onNavigateToTwoFactorSettings = {
+                                navController.navigate(TwoFactorSettingsRoute) {
                                     launchSingleTop = true
                                 }
-                            }
-                        },
-                    )
+                            },
+                            onSignOut = {
+                                coroutineScope.launch {
+                                    sessionRepository.signOut()
+                                    pendingAuthTarget = null
+                                    navController.navigate(HomeRoute) {
+                                        popUpTo<HomeRoute> { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
