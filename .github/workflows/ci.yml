@@ -41,7 +41,7 @@ jobs:
 
       - name: Upload test and lint reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-and-lint-reports
           path: |
@@ -71,7 +71,7 @@ jobs:
 
       - name: Upload debug APK on main
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kinetix-android-debug-apk
           path: app/build/outputs/apk/debug/*.apk
@@ -105,7 +105,7 @@ jobs:
           exit-code: "0"
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ github.sha }}
           path: sbom.spdx.json
