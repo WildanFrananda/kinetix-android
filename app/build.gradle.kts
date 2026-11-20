@@ -1,3 +1,5 @@
+import java.net.URI
+import java.net.URISyntaxException
 import java.util.Properties
 
 plugins {
@@ -6,6 +8,11 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+}
+
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 val localProperties = Properties().apply {
@@ -128,6 +135,55 @@ kotlin {
     }
 }
 
+ksp {
+    arg("room.generateKotlin", "true")
+}
+
+val verifyReleaseConfig = tasks.register("verifyReleaseConfig") {
+    description = ""
+    val httpBase = httpBaseConfig.trim()
+    val wsBase = wsBaseConfig.trim()
+    doLast {
+        val problems = mutableListOf<String>()
+        val entries = listOf(
+            Triple("KINETIX_HTTP_BASE", httpBase, "https"),
+            Triple("KINETIX_WS_BASE", wsBase, "wss"),
+        )
+        for ((key, raw, expectedScheme) in entries) {
+            if (raw.isEmpty()) {
+                problems.add("$key is missing")
+                continue
+            }
+            val uri = try {
+                URI(raw)
+            } catch (_: URISyntaxException) {
+                problems.add("$key is not a valid URI")
+                continue
+            }
+            if (uri.scheme?.lowercase() != expectedScheme) {
+                problems.add("$key must use $expectedScheme://")
+            }
+            if (uri.host.isNullOrBlank()) {
+                problems.add("$key must include a host")
+            }
+            val path = uri.rawPath.orEmpty()
+            if (path.isNotEmpty() && path != "/") {
+                problems.add("$key must not contain a path")
+            }
+            if (uri.rawQuery != null || uri.rawFragment != null) {
+                problems.add("$key must not contain query or fragment parameters")
+            }
+        }
+        if (problems.isNotEmpty()) {
+            throw GradleException("Invalid release configuration: ${problems.joinToString("; ")}")
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseConfig)
+}
+
 dependencyLocking {
     lockAllConfigurations()
 }
@@ -159,12 +215,24 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization.converter)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.config)
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.messaging)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

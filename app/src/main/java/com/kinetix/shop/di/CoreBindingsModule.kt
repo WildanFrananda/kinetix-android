@@ -1,5 +1,8 @@
 package com.kinetix.shop.di
 
+import com.kinetix.shop.core.network.RequestCorrelationRecorder
+import com.kinetix.shop.core.network.RequestIdGenerator
+import com.kinetix.shop.core.network.UuidRequestIdGenerator
 import com.kinetix.shop.core.time.Clock
 import com.kinetix.shop.core.time.SystemClock
 import com.kinetix.shop.repositories.auth.AuthRepository
@@ -18,12 +21,32 @@ import com.kinetix.shop.repositories.review.ReviewRepository
 import com.kinetix.shop.repositories.review.ReviewRepositoryImpl
 import com.kinetix.shop.repositories.search.SearchRepository
 import com.kinetix.shop.repositories.search.SearchRepositoryImpl
+import com.kinetix.shop.services.config.FeatureFlagProvider
+import com.kinetix.shop.services.config.FirebaseFeatureFlagProvider
+import com.kinetix.shop.services.local.CatalogCacheStore
+import com.kinetix.shop.services.local.OutboxStore
+import com.kinetix.shop.services.local.PendingTransactionStore
+import com.kinetix.shop.services.local.ProfileCacheStore
+import com.kinetix.shop.services.local.RoomCatalogCacheStore
+import com.kinetix.shop.services.local.RoomOutboxStore
+import com.kinetix.shop.services.local.RoomPendingTransactionStore
+import com.kinetix.shop.services.local.RoomProfileCacheStore
+import com.kinetix.shop.services.notification.DefaultPushMessageHandler
+import com.kinetix.shop.services.notification.FcmTokenStore
+import com.kinetix.shop.services.notification.PushMessageHandler
+import com.kinetix.shop.services.notification.SharedPreferencesFcmTokenStore
+import com.kinetix.shop.services.outbox.OutboxSyncScheduler
+import com.kinetix.shop.services.outbox.WorkManagerOutboxSyncScheduler
 import com.kinetix.shop.services.session.RetrofitTokenRefreshTransport
 import com.kinetix.shop.services.session.SessionRenewer
 import com.kinetix.shop.services.session.SingleFlightSessionRenewer
 import com.kinetix.shop.services.session.TokenRefreshTransport
 import com.kinetix.shop.services.storage.KeyStoreSessionCipher
 import com.kinetix.shop.services.storage.SessionCipher
+import com.kinetix.shop.services.telemetry.AnalyticsTracker
+import com.kinetix.shop.services.telemetry.CrashReporter
+import com.kinetix.shop.services.telemetry.FirebaseAnalyticsTracker
+import com.kinetix.shop.services.telemetry.FirebaseCrashReporter
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -38,6 +61,78 @@ abstract class CoreBindingsModule {
     abstract fun bindClock(
         impl: SystemClock,
     ): Clock
+
+    @Binds
+    @Singleton
+    abstract fun bindRequestIdGenerator(
+        impl: UuidRequestIdGenerator,
+    ): RequestIdGenerator
+
+    @Binds
+    @Singleton
+    abstract fun bindRequestCorrelationRecorder(
+        impl: FirebaseCrashReporter,
+    ): RequestCorrelationRecorder
+
+    @Binds
+    @Singleton
+    abstract fun bindCrashReporter(
+        impl: FirebaseCrashReporter,
+    ): CrashReporter
+
+    @Binds
+    @Singleton
+    abstract fun bindAnalyticsTracker(
+        impl: FirebaseAnalyticsTracker,
+    ): AnalyticsTracker
+
+    @Binds
+    @Singleton
+    abstract fun bindFeatureFlagProvider(
+        impl: FirebaseFeatureFlagProvider,
+    ): FeatureFlagProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindFcmTokenStore(
+        impl: SharedPreferencesFcmTokenStore,
+    ): FcmTokenStore
+
+    @Binds
+    @Singleton
+    abstract fun bindPushMessageHandler(
+        impl: DefaultPushMessageHandler,
+    ): PushMessageHandler
+
+    @Binds
+    @Singleton
+    abstract fun bindCatalogCacheStore(
+        impl: RoomCatalogCacheStore,
+    ): CatalogCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindProfileCacheStore(
+        impl: RoomProfileCacheStore,
+    ): ProfileCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindPendingTransactionStore(
+        impl: RoomPendingTransactionStore,
+    ): PendingTransactionStore
+
+    @Binds
+    @Singleton
+    abstract fun bindOutboxStore(
+        impl: RoomOutboxStore,
+    ): OutboxStore
+
+    @Binds
+    @Singleton
+    abstract fun bindOutboxSyncScheduler(
+        impl: WorkManagerOutboxSyncScheduler,
+    ): OutboxSyncScheduler
 
     @Binds
     @Singleton

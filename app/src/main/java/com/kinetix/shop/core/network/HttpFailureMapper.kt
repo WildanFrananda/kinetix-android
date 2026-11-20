@@ -21,55 +21,70 @@ class HttpFailureMapper @Inject constructor(
         statusCode: Int,
         rawErrorBody: String?,
         retryAfterHeaderSeconds: Int?,
+        requestId: String? = null,
     ): Failure {
         val parsed = errorParser.parse(rawErrorBody)
         val code = parsed?.error ?: "HTTP_$statusCode"
         val detail = errorParser.extractMessage(parsed) ?: "HTTP $statusCode"
+        val resolvedRequestId = parsed?.traceId?.takeIf { it.isNotBlank() } ?: requestId
 
         return when (statusCode) {
             400, 422 -> ValidationFailure(
                 code = code,
                 detail = detail,
                 field = parsed?.field,
+                requestId = resolvedRequestId,
             )
 
             401 -> UnauthorizedFailure(
                 code = code,
                 detail = detail,
+                requestId = resolvedRequestId,
             )
 
             403 -> ForbiddenFailure(
                 code = code,
                 detail = detail,
+                requestId = resolvedRequestId,
             )
 
             404 -> NotFoundFailure(
                 code = code,
                 detail = detail,
+                requestId = resolvedRequestId,
             )
 
             409 -> ConflictFailure(
                 code = code,
                 detail = detail,
+                requestId = resolvedRequestId,
             )
 
             429 -> {
                 val delaySeconds = parsed?.retryAfterSeconds ?: retryAfterHeaderSeconds
                 if (code == "SIGN_IN_DELAYED") {
-                    SignInDelayedFailure(delaySeconds ?: 1)
+                    SignInDelayedFailure(
+                        retryAfterSeconds = delaySeconds ?: 1,
+                        requestId = resolvedRequestId,
+                    )
                 } else {
-                    RateLimitedFailure(delaySeconds)
+                    RateLimitedFailure(
+                        retryAfterSeconds = delaySeconds,
+                        requestId = resolvedRequestId,
+                    )
                 }
             }
 
             502, 503, 504 -> UnavailableFailure(
                 code = code,
                 retryAfterSeconds = retryAfterHeaderSeconds,
+                requestId = resolvedRequestId,
             )
 
             else -> UnknownOutcomeFailure(
                 code = code,
                 detail = detail,
+                requestId = resolvedRequestId,
             )
         }
     }

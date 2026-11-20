@@ -1,12 +1,19 @@
 package com.kinetix.shop.di
 
 import android.content.Context
+import androidx.room.Room
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.kinetix.shop.BuildConfig
 import com.kinetix.shop.core.config.AppConfigCheckResult
 import com.kinetix.shop.core.config.AppConfigValid
 import com.kinetix.shop.core.config.AppConfigValidator
 import com.kinetix.shop.core.config.NetworkPolicy
+import com.kinetix.shop.core.network.RequestCorrelationInterceptor
+import com.kinetix.shop.services.local.CatalogCacheDao
+import com.kinetix.shop.services.local.KinetixDatabase
+import com.kinetix.shop.services.local.OutboxDao
+import com.kinetix.shop.services.local.PendingTransactionStateDao
+import com.kinetix.shop.services.local.ProfileCacheDao
 import com.kinetix.shop.services.remote.CatalogApiService
 import com.kinetix.shop.services.remote.IdentityApiService
 import com.kinetix.shop.services.remote.PricingApiService
@@ -52,13 +59,16 @@ object CoreModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(
+        requestCorrelationInterceptor: RequestCorrelationInterceptor,
+    ): OkHttpClient {
         return OkHttpClient.Builder()
             .connectTimeout(NetworkPolicy.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(NetworkPolicy.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(NetworkPolicy.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .callTimeout(NetworkPolicy.CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .retryOnConnectionFailure(false)
+            .addInterceptor(requestCorrelationInterceptor)
             .build()
     }
 
@@ -135,5 +145,49 @@ object CoreModule {
             cipher = cipher,
             json = json,
         )
+    }
+
+    @Provides
+    @Singleton
+    fun provideKinetixDatabase(
+        @ApplicationContext context: Context,
+    ): KinetixDatabase {
+        return Room.databaseBuilder(
+            context,
+            KinetixDatabase::class.java,
+            "kinetix_shop.db",
+        ).fallbackToDestructiveMigration(dropAllTables = true).build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideCatalogCacheDao(
+        database: KinetixDatabase,
+    ): CatalogCacheDao {
+        return database.catalogCacheDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideProfileCacheDao(
+        database: KinetixDatabase,
+    ): ProfileCacheDao {
+        return database.profileCacheDao()
+    }
+
+    @Provides
+    @Singleton
+    fun providePendingTransactionStateDao(
+        database: KinetixDatabase,
+    ): PendingTransactionStateDao {
+        return database.pendingTransactionStateDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideOutboxDao(
+        database: KinetixDatabase,
+    ): OutboxDao {
+        return database.outboxDao()
     }
 }
