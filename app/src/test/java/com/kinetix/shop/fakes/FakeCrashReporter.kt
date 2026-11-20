@@ -11,17 +11,23 @@ class FakeCrashReporter : CrashReporter, RequestCorrelationRecorder {
     val customKeys = linkedMapOf<String, String>()
     val breadcrumbs = mutableListOf<Pair<String, String>>()
     val nonFatalExceptions = mutableListOf<Throwable>()
+    private var lastRecordedRequestId: String? = null
 
     override fun recordRequest(
         method: String,
         routeTemplate: String,
         requestId: String,
     ) {
+        lastRecordedRequestId = requestId
         setCustomKey(RequestCorrelationInterceptor.KEY_LAST_REQUEST_ID, requestId)
         recordBreadcrumb(
             category = "http",
             message = "$method $routeTemplate requestId=$requestId",
         )
+    }
+
+    override fun latestRequestId(): String? {
+        return lastRecordedRequestId
     }
 
     override fun setUserPrincipal(

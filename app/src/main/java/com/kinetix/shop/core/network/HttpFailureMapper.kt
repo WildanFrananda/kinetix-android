@@ -26,7 +26,7 @@ class HttpFailureMapper @Inject constructor(
         val parsed = errorParser.parse(rawErrorBody)
         val code = parsed?.error ?: "HTTP_$statusCode"
         val detail = errorParser.extractMessage(parsed) ?: "HTTP $statusCode"
-        val resolvedRequestId = parsed?.traceId ?: requestId
+        val resolvedRequestId = parsed?.traceId?.takeIf { it.isNotBlank() } ?: requestId
 
         return when (statusCode) {
             400, 422 -> ValidationFailure(

@@ -6,4 +6,8 @@ interface RequestCorrelationRecorder {
         routeTemplate: String,
         requestId: String,
     )
+
+    fun latestRequestId(): String? {
+        return null
+    }
 }

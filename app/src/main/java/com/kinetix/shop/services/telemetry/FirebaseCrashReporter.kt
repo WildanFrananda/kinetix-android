@@ -14,16 +14,24 @@ import javax.inject.Singleton
 class FirebaseCrashReporter @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : CrashReporter, RequestCorrelationRecorder {
+    @Volatile
+    private var lastRecordedRequestId: String? = null
+
     override fun recordRequest(
         method: String,
         routeTemplate: String,
         requestId: String,
     ) {
+        lastRecordedRequestId = requestId
         setCustomKey(RequestCorrelationInterceptor.KEY_LAST_REQUEST_ID, requestId)
         recordBreadcrumb(
             category = "http",
             message = "$method $routeTemplate requestId=$requestId",
         )
+    }
+
+    override fun latestRequestId(): String? {
+        return lastRecordedRequestId
     }
     override fun setUserPrincipal(
         principalId: PrincipalId?,
