@@ -1,6 +1,7 @@
 package com.kinetix.shop.core.config
 
 import java.net.URI
+import java.net.URISyntaxException
 
 class AppConfigValidator {
     fun validate(
@@ -53,6 +54,9 @@ class AppConfigValidator {
     ) {
         val uri = try {
             URI(rawUrl)
+        } catch (_: URISyntaxException) {
+            problems.add("$keyName is not a valid URI")
+            return
         } catch (_: IllegalArgumentException) {
             problems.add("$keyName is not a valid URI")
             return

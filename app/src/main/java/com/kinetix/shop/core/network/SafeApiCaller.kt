@@ -91,6 +91,8 @@ class SafeApiCaller @Inject constructor(
             null
         }
         val retryAfterSeconds = response.headers()["Retry-After"]?.toIntOrNull()
+        val headerRequestId = response.headers()[RequestCorrelationInterceptor.HEADER_REQUEST_ID]
+            ?: response.raw().request.header(RequestCorrelationInterceptor.HEADER_REQUEST_ID)
 
         val customFailure = onErrorOverride?.invoke(
             statusCode,
@@ -106,6 +108,7 @@ class SafeApiCaller @Inject constructor(
                 statusCode = statusCode,
                 rawErrorBody = rawErrorBody,
                 retryAfterHeaderSeconds = retryAfterSeconds,
+                requestId = headerRequestId,
             )
         )
     }

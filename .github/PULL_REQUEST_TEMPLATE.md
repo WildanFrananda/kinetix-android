@@ -9,4 +9,4 @@
 - [ ] `./gradlew assembleDebug assembleRelease` passes
 - [ ] Zero comments in `.kt` / `.kts` files and 100% English identifiers/copy (`strings.xml`)
 - [ ] Hand-written fakes used for all new tests (no mocking frameworks)
-- [ ] Updated `AGENTS.md` §5 Living Progress & Architectural Decisions Log if applicable
+- [ ] Appended to the log in `AGENTS.md` §0.3 if applicable

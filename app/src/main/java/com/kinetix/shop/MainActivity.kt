@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
     lateinit var configCheckResult: AppConfigCheckResult
 
     @Inject
-    lateinit var sessionRepository: SessionRepository
+    lateinit var sessionRepository: dagger.Lazy<SessionRepository>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
                     }
                     is AppConfigValid -> {
                         AppRootScreen(
-                            sessionRepository = sessionRepository,
+                            sessionRepository = sessionRepository.get(),
                         )
                     }
                 }

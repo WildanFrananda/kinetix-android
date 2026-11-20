@@ -1,7 +1,8 @@
 package com.kinetix.shop.di
 
-import com.kinetix.shop.core.network.SecureRandomTraceIdGenerator
-import com.kinetix.shop.core.network.TraceIdGenerator
+import com.kinetix.shop.core.network.RequestCorrelationRecorder
+import com.kinetix.shop.core.network.RequestIdGenerator
+import com.kinetix.shop.core.network.UuidRequestIdGenerator
 import com.kinetix.shop.core.time.Clock
 import com.kinetix.shop.core.time.SystemClock
 import com.kinetix.shop.repositories.auth.AuthRepository
@@ -63,9 +64,15 @@ abstract class CoreBindingsModule {
 
     @Binds
     @Singleton
-    abstract fun bindTraceIdGenerator(
-        impl: SecureRandomTraceIdGenerator,
-    ): TraceIdGenerator
+    abstract fun bindRequestIdGenerator(
+        impl: UuidRequestIdGenerator,
+    ): RequestIdGenerator
+
+    @Binds
+    @Singleton
+    abstract fun bindRequestCorrelationRecorder(
+        impl: FirebaseCrashReporter,
+    ): RequestCorrelationRecorder
 
     @Binds
     @Singleton

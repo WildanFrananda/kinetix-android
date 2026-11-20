@@ -8,7 +8,7 @@ import com.kinetix.shop.core.config.AppConfigCheckResult
 import com.kinetix.shop.core.config.AppConfigValid
 import com.kinetix.shop.core.config.AppConfigValidator
 import com.kinetix.shop.core.config.NetworkPolicy
-import com.kinetix.shop.core.network.W3cTraceparentInterceptor
+import com.kinetix.shop.core.network.RequestCorrelationInterceptor
 import com.kinetix.shop.services.local.CatalogCacheDao
 import com.kinetix.shop.services.local.KinetixDatabase
 import com.kinetix.shop.services.local.OutboxDao
@@ -60,7 +60,7 @@ object CoreModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        traceparentInterceptor: W3cTraceparentInterceptor,
+        requestCorrelationInterceptor: RequestCorrelationInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .connectTimeout(NetworkPolicy.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -68,7 +68,7 @@ object CoreModule {
             .writeTimeout(NetworkPolicy.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .callTimeout(NetworkPolicy.CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .retryOnConnectionFailure(false)
-            .addInterceptor(traceparentInterceptor)
+            .addInterceptor(requestCorrelationInterceptor)
             .build()
     }
 

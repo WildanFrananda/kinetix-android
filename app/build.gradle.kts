@@ -1,3 +1,5 @@
+import java.net.URI
+import java.net.URISyntaxException
 import java.util.Properties
 
 plugins {
@@ -135,6 +137,51 @@ kotlin {
 
 ksp {
     arg("room.generateKotlin", "true")
+}
+
+val verifyReleaseConfig = tasks.register("verifyReleaseConfig") {
+    description = ""
+    val httpBase = httpBaseConfig.trim()
+    val wsBase = wsBaseConfig.trim()
+    doLast {
+        val problems = mutableListOf<String>()
+        val entries = listOf(
+            Triple("KINETIX_HTTP_BASE", httpBase, "https"),
+            Triple("KINETIX_WS_BASE", wsBase, "wss"),
+        )
+        for ((key, raw, expectedScheme) in entries) {
+            if (raw.isEmpty()) {
+                problems.add("$key is missing")
+                continue
+            }
+            val uri = try {
+                URI(raw)
+            } catch (_: URISyntaxException) {
+                problems.add("$key is not a valid URI")
+                continue
+            }
+            if (uri.scheme?.lowercase() != expectedScheme) {
+                problems.add("$key must use $expectedScheme://")
+            }
+            if (uri.host.isNullOrBlank()) {
+                problems.add("$key must include a host")
+            }
+            val path = uri.rawPath.orEmpty()
+            if (path.isNotEmpty() && path != "/") {
+                problems.add("$key must not contain a path")
+            }
+            if (uri.rawQuery != null || uri.rawFragment != null) {
+                problems.add("$key must not contain query or fragment parameters")
+            }
+        }
+        if (problems.isNotEmpty()) {
+            throw GradleException("Invalid release configuration: ${problems.joinToString("; ")}")
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseConfig)
 }
 
 dependencyLocking {

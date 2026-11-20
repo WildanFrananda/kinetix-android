@@ -3,6 +3,8 @@ package com.kinetix.shop.services.telemetry
 import android.content.Context
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.kinetix.shop.core.network.RequestCorrelationInterceptor
+import com.kinetix.shop.core.network.RequestCorrelationRecorder
 import com.kinetix.shop.models.ids.PrincipalId
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -11,7 +13,18 @@ import javax.inject.Singleton
 @Singleton
 class FirebaseCrashReporter @Inject constructor(
     @ApplicationContext private val context: Context,
-) : CrashReporter {
+) : CrashReporter, RequestCorrelationRecorder {
+    override fun recordRequest(
+        method: String,
+        routeTemplate: String,
+        requestId: String,
+    ) {
+        setCustomKey(RequestCorrelationInterceptor.KEY_LAST_REQUEST_ID, requestId)
+        recordBreadcrumb(
+            category = "http",
+            message = "$method $routeTemplate requestId=$requestId",
+        )
+    }
     override fun setUserPrincipal(
         principalId: PrincipalId?,
     ) {

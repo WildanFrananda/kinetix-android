@@ -41,6 +41,17 @@ class AppConfigValidatorTest {
     }
 
     @Test
+    fun rejectsMalformedUriSyntaxWithoutThrowing() {
+        val result = validator.validate(
+            httpBase = "https://bad host",
+            wsBase = "wss://bad host",
+        )
+        assertTrue(result is AppConfigInvalid)
+        val problems = (result as AppConfigInvalid).problems
+        assertEquals(2, problems.size)
+    }
+
+    @Test
     fun acceptsHttpsAndWssOriginsAndStripsTrailingSlash() {
         val result = validator.validate(
             httpBase = "https://api.wildanfrananda.my.id/",
