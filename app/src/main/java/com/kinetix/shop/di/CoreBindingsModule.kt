@@ -37,6 +37,8 @@ import com.kinetix.shop.services.notification.PushMessageHandler
 import com.kinetix.shop.services.notification.SharedPreferencesFcmTokenStore
 import com.kinetix.shop.services.outbox.OutboxSyncScheduler
 import com.kinetix.shop.services.outbox.WorkManagerOutboxSyncScheduler
+import com.kinetix.shop.services.session.OkHttpRefreshWireExecutor
+import com.kinetix.shop.services.session.RefreshWireExecutor
 import com.kinetix.shop.services.session.RetrofitTokenRefreshTransport
 import com.kinetix.shop.services.session.SessionRenewer
 import com.kinetix.shop.services.session.SingleFlightSessionRenewer
@@ -139,6 +141,12 @@ abstract class CoreBindingsModule {
     abstract fun bindSessionCipher(
         impl: KeyStoreSessionCipher,
     ): SessionCipher
+
+    @Binds
+    @Singleton
+    abstract fun bindRefreshWireExecutor(
+        impl: OkHttpRefreshWireExecutor,
+    ): RefreshWireExecutor
 
     @Binds
     @Singleton

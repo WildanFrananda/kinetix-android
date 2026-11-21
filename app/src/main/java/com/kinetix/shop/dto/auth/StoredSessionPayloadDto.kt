@@ -10,4 +10,5 @@ data class StoredSessionPayloadDto(
     val accountId: Long,
     val principalId: String,
     val email: String,
+    val role: String = "customer",
 )

@@ -132,4 +132,7 @@
     <string name="product_detail_reviews_summary_format">%1$.1f ★ across %2$d reviews</string>
     <string name="product_detail_reviews_empty">No buyer reviews yet for this product.</string>
     <string name="product_detail_review_rating_format">Rating: %1$d / 5</string>
+    <string name="session_unreadable_message">Your saved session could not be read on this device. Sign in again to replace it.</string>
+    <string name="session_unreadable_sign_in_action">Sign In Again</string>
+    <string name="session_non_buyer_role_notice">This app is for buyer accounts. Wallet features require a customer account.</string>
 </resources>

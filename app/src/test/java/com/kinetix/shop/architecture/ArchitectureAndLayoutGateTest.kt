@@ -97,7 +97,7 @@ class ArchitectureAndLayoutGateTest {
     @Test
     fun enforcesOneTopLevelDeclarationPerFileMatchingFileName() {
         val declarationRegex = Regex(
-            """^(?:(?:public|internal|private|abstract|sealed|data|value|enum|fun)\s+)*(?:class|interface|object)\s+([A-Za-z0-9_]+)|^fun\s+([A-Za-z0-9_]+)\s*\("""
+            """^(?:(?:public|internal|private|abstract|sealed|data|value|enum|annotation|fun)\s+)*(?:class|interface|object)\s+([A-Za-z0-9_]+)|^fun\s+([A-Za-z0-9_]+)\s*\("""
         )
         val violations = mutableListOf<String>()
 

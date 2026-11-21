@@ -2,14 +2,19 @@ package com.kinetix.shop.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -37,6 +42,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.kinetix.shop.R
+import com.kinetix.shop.models.auth.SessionRestoring
+import com.kinetix.shop.models.auth.SessionSignedIn
+import com.kinetix.shop.models.auth.SessionSignedOut
+import com.kinetix.shop.models.auth.SessionUnreadable
 import com.kinetix.shop.repositories.auth.SessionRepository
 import com.kinetix.shop.routes.HomeRoute
 import com.kinetix.shop.routes.ProductDetailRoute
@@ -72,12 +81,12 @@ fun AppRootScreen(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
-    val currentSession by sessionRepository.currentSession.collectAsStateWithLifecycle()
+    val sessionState by sessionRepository.sessionState.collectAsStateWithLifecycle()
+    val currentSession = (sessionState as? SessionSignedIn)?.session
     val coroutineScope = rememberCoroutineScope()
     var pendingAuthTarget by rememberSaveable { mutableStateOf<String?>(null) }
-    var sessionRestored by rememberSaveable { mutableStateOf(false) }
 
-    val isSignedIn = currentSession != null
+    val isSignedIn = sessionState is SessionSignedIn
     val isOnHome = currentDestination?.hasRoute<HomeRoute>() == true
     val isOnSearch = currentDestination?.hasRoute<SearchRoute>() == true
     val isOnProfile = currentDestination?.hasRoute<ProfileRoute>() == true
@@ -89,11 +98,10 @@ fun AppRootScreen(
 
     LaunchedEffect(Unit) {
         sessionRepository.restoreSession()
-        sessionRestored = true
     }
 
-    LaunchedEffect(sessionRestored, currentSession, currentDestination) {
-        if (!sessionRestored || currentSession != null) {
+    LaunchedEffect(sessionState, currentDestination) {
+        if (sessionState !is SessionSignedOut) {
             return@LaunchedEffect
         }
         if (isOnProfile) {
@@ -298,38 +306,116 @@ fun AppRootScreen(
                     )
                 }
                 composable<TwoFactorSettingsRoute> {
-                    if (currentSession != null) {
-                        val viewModel: TwoFactorSettingsViewModel = hiltViewModel()
-                        TwoFactorSettingsScreen(
-                            viewModel = viewModel,
-                        )
+                    when (sessionState) {
+                        is SessionRestoring -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        is SessionUnreadable -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(24.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.session_unreadable_message),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        pendingAuthTarget = "two_factor_settings"
+                                        navController.navigate(SignInRoute) {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                ) {
+                                    Text(text = stringResource(R.string.session_unreadable_sign_in_action))
+                                }
+                            }
+                        }
+
+                        is SessionSignedIn -> {
+                            val viewModel: TwoFactorSettingsViewModel = hiltViewModel()
+                            TwoFactorSettingsScreen(
+                                viewModel = viewModel,
+                            )
+                        }
+
+                        is SessionSignedOut -> Unit
                     }
                 }
                 composable<ProfileRoute> {
-                    val activeSession = currentSession
-                    if (activeSession != null) {
-                        val viewModel: ProfileViewModel = hiltViewModel()
-                        ProfileScreen(
-                            email = activeSession.email,
-                            accountId = activeSession.accountId.value,
-                            principalId = activeSession.principalId.value,
-                            viewModel = viewModel,
-                            onNavigateToTwoFactorSettings = {
-                                navController.navigate(TwoFactorSettingsRoute) {
-                                    launchSingleTop = true
+                    when (val state = sessionState) {
+                        is SessionRestoring -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        is SessionUnreadable -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(24.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.session_unreadable_message),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        pendingAuthTarget = "profile"
+                                        navController.navigate(SignInRoute) {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                ) {
+                                    Text(text = stringResource(R.string.session_unreadable_sign_in_action))
                                 }
-                            },
-                            onSignOut = {
-                                coroutineScope.launch {
-                                    sessionRepository.signOut()
-                                    pendingAuthTarget = null
-                                    navController.navigate(HomeRoute) {
-                                        popUpTo<HomeRoute> { inclusive = true }
+                            }
+                        }
+
+                        is SessionSignedIn -> {
+                            val activeSession = state.session
+                            val viewModel: ProfileViewModel = hiltViewModel()
+                            ProfileScreen(
+                                email = activeSession.email,
+                                accountId = activeSession.accountId.value,
+                                principalId = activeSession.principalId.value,
+                                viewModel = viewModel,
+                                onNavigateToTwoFactorSettings = {
+                                    navController.navigate(TwoFactorSettingsRoute) {
                                         launchSingleTop = true
                                     }
-                                }
-                            },
-                        )
+                                },
+                                onSignOut = {
+                                    coroutineScope.launch {
+                                        sessionRepository.signOut()
+                                        pendingAuthTarget = null
+                                        navController.navigate(HomeRoute) {
+                                            popUpTo<HomeRoute> { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                },
+                            )
+                        }
+
+                        is SessionSignedOut -> Unit
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.kinetix.shop.repositories.auth
 
+import com.kinetix.shop.core.concurrency.ApplicationScope
 import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.failure.UnauthorizedFailure
 import com.kinetix.shop.core.network.SafeApiCaller
@@ -9,20 +10,30 @@ import com.kinetix.shop.core.result.Result
 import com.kinetix.shop.core.result.UnitSentinel
 import com.kinetix.shop.core.time.Clock
 import com.kinetix.shop.dto.auth.LogoutRequestDto
+import com.kinetix.shop.models.auth.SessionRestoring
+import com.kinetix.shop.models.auth.SessionSignedIn
+import com.kinetix.shop.models.auth.SessionSignedOut
+import com.kinetix.shop.models.auth.SessionState
+import com.kinetix.shop.models.auth.SessionUnreadable
 import com.kinetix.shop.models.auth.StoredSession
 import com.kinetix.shop.models.ids.AccountId
 import com.kinetix.shop.models.ids.PrincipalId
 import com.kinetix.shop.services.remote.IdentityApiService
 import com.kinetix.shop.services.session.SessionRenewer
 import com.kinetix.shop.services.storage.TokenStore
+import com.kinetix.shop.services.telemetry.CrashReporter
 import java.time.Instant
 import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -33,101 +44,53 @@ class SessionRepositoryImpl @Inject constructor(
     private val tokenStore: TokenStore,
     private val sessionRenewer: SessionRenewer,
     private val clock: Clock,
+    private val crashReporter: CrashReporter,
+    @ApplicationScope private val applicationScope: CoroutineScope,
 ) : SessionRepository {
+    private val sessionStateFlow = MutableStateFlow<SessionState>(SessionRestoring)
     private val sessionFlow = MutableStateFlow<StoredSession?>(null)
+    private val restoreMutex = Mutex()
+    private var inFlightRestore: Deferred<Result<StoredSession?>>? = null
+
+    override val sessionState: StateFlow<SessionState> = sessionStateFlow.asStateFlow()
 
     override val currentSession: StateFlow<StoredSession?> = sessionFlow.asStateFlow()
 
     override fun updateSession(session: StoredSession?) {
-        sessionFlow.value = session
+        if (session == null) {
+            setSignedOut()
+        } else {
+            setSignedIn(session)
+        }
     }
 
     override suspend fun restoreSession(): Result<StoredSession?> {
-        val loaded = when (val readResult = tokenStore.read()) {
-            is Ok -> readResult.value
-            is Err -> {
-                sessionFlow.value = null
-                return Err(readResult.failure)
-            }
-        }
-        if (loaded == null) {
-            sessionFlow.value = null
-            return Ok(null)
-        }
-
-        val activeSession = if (needsProactiveRefresh(loaded)) {
-            when (val renewed = sessionRenewer.renew(loaded.accessToken)) {
-                is Ok -> renewed.value
-                is Err -> {
-                    val remaining = tokenStore.read()
-                    if (remaining is Ok && remaining.value == null) {
-                        sessionFlow.value = null
-                        return Ok(null)
-                    }
-                    sessionFlow.value = loaded
-                    return Ok(loaded)
-                }
-            }
-        } else {
-            loaded
-        }
-
-        val verified = verifyMe(activeSession)
-        if (verified is Ok) {
-            sessionFlow.value = verified.value
-            return Ok(verified.value)
-        }
-        if (verified is Err && verified.failure is UnauthorizedFailure) {
-            when (val renewed = sessionRenewer.renew(activeSession.accessToken)) {
-                is Ok -> {
-                    val rechecked = verifyMe(renewed.value)
-                    if (rechecked is Ok) {
-                        sessionFlow.value = rechecked.value
-                        return Ok(rechecked.value)
-                    }
-                    tokenStore.clear()
-                    sessionFlow.value = null
-                    return Ok(null)
-                }
-                is Err -> {
-                    val remaining = tokenStore.read()
-                    if (remaining is Ok && remaining.value == null) {
-                        sessionFlow.value = null
-                        return Ok(null)
+        val deferred = restoreMutex.withLock {
+            val active = inFlightRestore
+            if (active != null && active.isActive) {
+                active
+            } else {
+                val created = applicationScope.async {
+                    try {
+                        performRestore()
+                    } finally {
+                        restoreMutex.withLock {
+                            inFlightRestore = null
+                        }
                     }
                 }
+                inFlightRestore = created
+                created
             }
         }
 
-        sessionFlow.value = activeSession
-        return Ok(activeSession)
+        return deferred.await()
     }
 
     override suspend fun signOut(): Result<UnitSentinel> {
-        val current = sessionFlow.value ?: when (val read = tokenStore.read()) {
-            is Ok -> read.value
-            is Err -> null
-        }
-
-        if (current != null) {
-            try {
-                withTimeoutOrNull(NetworkPolicy.LOGOUT_TIMEOUT_MILLIS.milliseconds) {
-                    apiService.logout(
-                        bearerToken = "Bearer ${current.accessToken}",
-                        request = LogoutRequestDto(
-                            refreshToken = current.refreshToken,
-                        ),
-                    )
-                }
-            } catch (exception: CancellationException) {
-                throw exception
-            } catch (_: Exception) {
-            }
-        }
-
-        tokenStore.clear()
-        sessionFlow.value = null
-        return Ok(UnitSentinel)
+        return applicationScope.async {
+            performSignOut()
+        }.await()
     }
 
     override suspend fun <T> withValidSession(
@@ -135,7 +98,10 @@ class SessionRepositoryImpl @Inject constructor(
     ): Result<T> {
         val baseSession = sessionFlow.value ?: when (val read = tokenStore.read()) {
             is Ok -> read.value
-            is Err -> return Err(read.failure)
+            is Err -> {
+                setUnreadable()
+                return Err(read.failure)
+            }
         } ?: return Err(
             UnauthorizedFailure(
                 code = "NOT_SIGNED_IN",
@@ -146,14 +112,12 @@ class SessionRepositoryImpl @Inject constructor(
         val readySession = if (needsProactiveRefresh(baseSession)) {
             when (val renewed = sessionRenewer.renew(baseSession.accessToken)) {
                 is Ok -> {
-                    sessionFlow.value = renewed.value
+                    setSignedIn(renewed.value)
                     renewed.value
                 }
+
                 is Err -> {
-                    val remaining = tokenStore.read()
-                    if (remaining is Ok && remaining.value == null) {
-                        sessionFlow.value = null
-                    }
+                    syncAfterRenewFailure()
                     return Err(renewed.failure)
                 }
             }
@@ -165,20 +129,213 @@ class SessionRepositoryImpl @Inject constructor(
         if (firstAttempt is Err && firstAttempt.failure is UnauthorizedFailure) {
             return when (val renewed = sessionRenewer.renew(readySession.accessToken)) {
                 is Ok -> {
-                    sessionFlow.value = renewed.value
+                    setSignedIn(renewed.value)
                     action(renewed.value)
                 }
+
                 is Err -> {
-                    val remaining = tokenStore.read()
-                    if (remaining is Ok && remaining.value == null) {
-                        sessionFlow.value = null
-                    }
+                    syncAfterRenewFailure()
                     Err(renewed.failure)
                 }
             }
         }
 
         return firstAttempt
+    }
+
+    private suspend fun performRestore(): Result<StoredSession?> {
+        val loaded = when (val readResult = tokenStore.read()) {
+            is Ok -> readResult.value
+            is Err -> {
+                setUnreadable()
+                return Err(readResult.failure)
+            }
+        }
+        if (loaded == null) {
+            setSignedOut()
+            return Ok(null)
+        }
+
+        val activeSession = if (needsProactiveRefresh(loaded)) {
+            when (val renewed = sessionRenewer.renew(loaded.accessToken)) {
+                is Ok -> renewed.value
+                is Err -> {
+                    return when (val remaining = tokenStore.read()) {
+                        is Ok -> {
+                            val persisted = remaining.value
+                            if (persisted == null) {
+                                setSignedOut()
+                                Ok(null)
+                            } else {
+                                setSignedIn(persisted)
+                                Ok(persisted)
+                            }
+                        }
+
+                        is Err -> {
+                            setUnreadable()
+                            Err(remaining.failure)
+                        }
+                    }
+                }
+            }
+        } else {
+            loaded
+        }
+
+        val verified = verifyMe(activeSession)
+        if (verified is Ok) {
+            setSignedIn(verified.value)
+            return Ok(verified.value)
+        }
+
+        if (verified is Err && verified.failure is UnauthorizedFailure) {
+            when (val renewed = sessionRenewer.renew(activeSession.accessToken)) {
+                is Ok -> {
+                    val rechecked = verifyMe(renewed.value)
+                    if (rechecked is Ok) {
+                        setSignedIn(rechecked.value)
+                        return Ok(rechecked.value)
+                    }
+                    if (rechecked is Err && rechecked.failure is UnauthorizedFailure) {
+                        tokenStore.clear()
+                        setSignedOut()
+                        return Ok(null)
+                    }
+                    setSignedIn(renewed.value)
+                    return Ok(renewed.value)
+                }
+
+                is Err -> {
+                    return when (val remaining = tokenStore.read()) {
+                        is Ok -> {
+                            val persisted = remaining.value
+                            if (persisted == null) {
+                                setSignedOut()
+                                Ok(null)
+                            } else {
+                                setSignedIn(persisted)
+                                Ok(persisted)
+                            }
+                        }
+
+                        is Err -> {
+                            setUnreadable()
+                            Err(remaining.failure)
+                        }
+                    }
+                }
+            }
+        }
+
+        setSignedIn(activeSession)
+        return Ok(activeSession)
+    }
+
+    private suspend fun performSignOut(): Result<UnitSentinel> {
+        if (sessionStateFlow.value is SessionUnreadable) {
+            return Ok(UnitSentinel)
+        }
+
+        val initial = sessionFlow.value ?: when (val read = tokenStore.read()) {
+            is Ok -> read.value
+            is Err -> {
+                setUnreadable()
+                return Ok(UnitSentinel)
+            }
+        }
+
+        if (initial != null) {
+            val sessionForLogout = if (needsProactiveRefresh(initial)) {
+                when (val renewed = sessionRenewer.renew(initial.accessToken)) {
+                    is Ok -> renewed.value
+                    is Err -> {
+                        if (renewed.failure is UnauthorizedFailure) {
+                            setSignedOut()
+                            return Ok(UnitSentinel)
+                        }
+                        initial
+                    }
+                }
+            } else {
+                initial
+            }
+
+            val logoutResult = withTimeoutOrNull(NetworkPolicy.LOGOUT_TIMEOUT_MILLIS.milliseconds) {
+                executeLogoutWithSingleGatewayRetry(sessionForLogout)
+            }
+            if (logoutResult == null || logoutResult is Err) {
+                crashReporter.recordBreadcrumb(
+                    category = "auth",
+                    message = "logout_unconfirmed",
+                )
+            }
+        }
+
+        tokenStore.clear()
+        setSignedOut()
+        return Ok(UnitSentinel)
+    }
+
+    private suspend fun executeLogoutWithSingleGatewayRetry(
+        session: StoredSession,
+    ): Result<UnitSentinel> {
+        val firstAttempt = callLogout(session)
+        if (firstAttempt is Err) {
+            val failure = firstAttempt.failure
+            if (failure is UnauthorizedFailure && failure.code == "HTTP_401") {
+                val renewed = sessionRenewer.renew(session.accessToken)
+                if (renewed is Ok) {
+                    return callLogout(renewed.value)
+                }
+            }
+        }
+
+        return firstAttempt
+    }
+
+    private suspend fun callLogout(
+        session: StoredSession,
+    ): Result<UnitSentinel> {
+        return safeApiCaller.executeNoContent(
+            call = {
+                apiService.logout(
+                    bearerToken = "Bearer ${session.accessToken}",
+                    request = LogoutRequestDto(
+                        refreshToken = session.refreshToken,
+                    ),
+                )
+            },
+        )
+    }
+
+    private suspend fun syncAfterRenewFailure() {
+        when (val remaining = tokenStore.read()) {
+            is Ok -> {
+                if (remaining.value == null) {
+                    setSignedOut()
+                }
+            }
+
+            is Err -> setUnreadable()
+        }
+    }
+
+    private fun setSignedIn(
+        session: StoredSession,
+    ) {
+        sessionFlow.value = session
+        sessionStateFlow.value = SessionSignedIn(session)
+    }
+
+    private fun setSignedOut() {
+        sessionFlow.value = null
+        sessionStateFlow.value = SessionSignedOut
+    }
+
+    private fun setUnreadable() {
+        sessionFlow.value = null
+        sessionStateFlow.value = SessionUnreadable
     }
 
     private fun needsProactiveRefresh(
@@ -203,11 +360,16 @@ class SessionRepositoryImpl @Inject constructor(
                 } catch (_: DateTimeParseException) {
                     session.expiresAtEpochSeconds
                 }
+                val shortenedExpirySeconds = minOf(
+                    session.expiresAtEpochSeconds,
+                    parsedExpirySeconds,
+                )
                 val updated = session.copy(
                     accountId = AccountId(dto.userId),
                     principalId = PrincipalId(dto.principalId),
                     email = dto.email,
-                    expiresAtEpochSeconds = parsedExpirySeconds,
+                    role = dto.role,
+                    expiresAtEpochSeconds = shortenedExpirySeconds,
                 )
                 tokenStore.write(updated)
                 Ok(updated)

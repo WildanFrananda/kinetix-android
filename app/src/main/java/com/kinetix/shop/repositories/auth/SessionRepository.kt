@@ -2,10 +2,13 @@ package com.kinetix.shop.repositories.auth
 
 import com.kinetix.shop.core.result.Result
 import com.kinetix.shop.core.result.UnitSentinel
+import com.kinetix.shop.models.auth.SessionState
 import com.kinetix.shop.models.auth.StoredSession
 import kotlinx.coroutines.flow.StateFlow
 
 interface SessionRepository {
+    val sessionState: StateFlow<SessionState>
+
     val currentSession: StateFlow<StoredSession?>
 
     fun updateSession(session: StoredSession?)
