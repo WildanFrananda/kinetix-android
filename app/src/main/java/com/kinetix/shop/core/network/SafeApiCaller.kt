@@ -17,7 +17,9 @@ import com.kinetix.shop.core.failure.ValidationFailure
 import com.kinetix.shop.core.failure.WrongPasswordFailure
 import com.kinetix.shop.core.failure.WrongTwoFactorCodeFailure
 import com.kinetix.shop.core.result.Err
+import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.result.Result
+import com.kinetix.shop.core.result.UnitSentinel
 import java.io.IOException
 import java.net.SocketTimeoutException
 import javax.inject.Inject
@@ -82,6 +84,18 @@ class SafeApiCaller @Inject constructor(
                     transform(body)
                 }
             },
+        )
+    }
+
+    suspend fun executeNoContent(
+        call: suspend () -> Response<Unit>,
+        onErrorOverride: ((Int, String?, Int?) -> Failure?)? = null,
+    ): Result<UnitSentinel> {
+        return invokeAndMap(
+            call = call,
+            onNullBody = { Ok(UnitSentinel) },
+            onErrorOverride = onErrorOverride,
+            transform = { Ok(UnitSentinel) },
         )
     }
 

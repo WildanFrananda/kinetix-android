@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.room.Room
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.kinetix.shop.BuildConfig
+import com.kinetix.shop.core.concurrency.ApplicationScope
+import com.kinetix.shop.core.concurrency.DefaultDispatcher
+import com.kinetix.shop.core.concurrency.IoDispatcher
 import com.kinetix.shop.core.config.AppConfigCheckResult
 import com.kinetix.shop.core.config.AppConfigValid
 import com.kinetix.shop.core.config.AppConfigValidator
@@ -30,6 +33,10 @@ import dagger.hilt.components.SingletonComponent
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -131,10 +138,34 @@ object CoreModule {
 
     @Provides
     @Singleton
+    @IoDispatcher
+    fun provideIoDispatcher(): CoroutineDispatcher {
+        return Dispatchers.IO
+    }
+
+    @Provides
+    @Singleton
+    @DefaultDispatcher
+    fun provideDefaultDispatcher(): CoroutineDispatcher {
+        return Dispatchers.Default
+    }
+
+    @Provides
+    @Singleton
+    @ApplicationScope
+    fun provideApplicationScope(
+        @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
+    ): CoroutineScope {
+        return CoroutineScope(SupervisorJob() + defaultDispatcher)
+    }
+
+    @Provides
+    @Singleton
     fun provideTokenStore(
         @ApplicationContext context: Context,
         cipher: SessionCipher,
         json: Json,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
     ): TokenStore {
         val storageDirectory = File(
             context.noBackupFilesDir,
@@ -144,6 +175,7 @@ object CoreModule {
             storageDirectory = storageDirectory,
             cipher = cipher,
             json = json,
+            ioDispatcher = ioDispatcher,
         )
     }
 

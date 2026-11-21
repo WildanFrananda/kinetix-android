@@ -8,6 +8,7 @@ import com.kinetix.shop.models.ids.AccountId
 import com.kinetix.shop.models.ids.PrincipalId
 import java.io.File
 import java.nio.file.Files
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -31,6 +32,7 @@ class EncryptedFileTokenStoreTest {
             storageDirectory = tempDir,
             cipher = cipher,
             json = json,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
         )
 
         val initialRead = store.read()
@@ -44,6 +46,7 @@ class EncryptedFileTokenStoreTest {
             accountId = AccountId(42L),
             principalId = PrincipalId("usr-uuid-42"),
             email = "buyer@kinetix.test",
+            role = "seller",
         )
 
         val writeResult = store.write(session)
@@ -70,6 +73,7 @@ class EncryptedFileTokenStoreTest {
             storageDirectory = tempDir,
             cipher = cipher,
             json = json,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
         )
 
         val readResult = store.read()

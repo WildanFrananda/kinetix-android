@@ -126,10 +126,6 @@ class AuthRepositoryImpl @Inject constructor(
                 ) {
                     return@execute Err(UnreadableAnswerFailure(""))
                 }
-                if (user.role.equals("admin", ignoreCase = true)) {
-                    return@execute Err(AdminAccountNotSupportedFailure)
-                }
-
                 val session = StoredSession(
                     accessToken = accessToken,
                     refreshToken = refreshToken,
@@ -137,6 +133,7 @@ class AuthRepositoryImpl @Inject constructor(
                     accountId = AccountId(user.id),
                     principalId = PrincipalId(user.principalId),
                     email = user.email,
+                    role = user.role,
                 )
                 when (val saveResult = tokenStore.write(session)) {
                     is Ok -> {
@@ -203,9 +200,6 @@ class AuthRepositoryImpl @Inject constructor(
     private suspend fun persistTokens(
         dto: SessionTokensResponseDto,
     ): Result<StoredSession> {
-        if (dto.user.role.equals("admin", ignoreCase = true)) {
-            return Err(AdminAccountNotSupportedFailure)
-        }
         val session = StoredSession(
             accessToken = dto.accessToken,
             refreshToken = dto.refreshToken,
@@ -213,6 +207,7 @@ class AuthRepositoryImpl @Inject constructor(
             accountId = AccountId(dto.user.id),
             principalId = PrincipalId(dto.user.principalId),
             email = dto.user.email,
+            role = dto.user.role,
         )
         return when (val writeResult = tokenStore.write(session)) {
             is Ok -> {

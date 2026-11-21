@@ -10,4 +10,8 @@ data class StoredSession(
     val accountId: AccountId,
     val principalId: PrincipalId,
     val email: String,
-)
+    val role: String = "customer",
+) {
+    val isBuyerAccount: Boolean
+        get() = role.equals("customer", ignoreCase = true)
+}
