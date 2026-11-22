@@ -62,7 +62,9 @@ fun HomeScreen(
                 )
             }
             is HomeCatalogLoadedUiState -> {
-                if (current.productPage.dataOrigin == DataOrigin.CACHE) {
+                val hasCachedData = current.productPage.dataOrigin == DataOrigin.CACHE ||
+                    current.categories.any { it.dataOrigin == DataOrigin.CACHE }
+                if (hasCachedData) {
                     Text(
                         text = stringResource(R.string.data_cached_banner),
                         style = MaterialTheme.typography.labelMedium,
