@@ -56,7 +56,7 @@ class ProfileViewModelTest {
             geocodedAt = "2026-11-19T10:00:00Z",
         )
         val repository = FakeProfileRepository().apply {
-            getProfileResult = Err(NotFoundFailure("HTTP_404", "Not found"))
+            getProfileResult = Err(NotFoundFailure("HTTP_404"))
             updateProfileResult = Ok(ProfileUpdateConfirmed(createdProfile))
         }
         val viewModel = ProfileViewModel(repository)

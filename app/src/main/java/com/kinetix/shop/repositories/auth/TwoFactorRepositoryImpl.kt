@@ -38,11 +38,8 @@ class TwoFactorRepositoryImpl @Inject constructor(
                 },
                 onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
                     val parsed = errorParser.parse(rawErrorBody)
-                    val message = errorParser.extractMessage(parsed).orEmpty()
                     when (statusCode) {
-                        400, 401 -> WrongPasswordFailure(
-                            detail = message,
-                        )
+                        400, 401 -> WrongPasswordFailure()
                         429 -> SignInDelayedFailure(
                             parsed?.retryAfterSeconds
                                 ?: retryAfterSeconds
@@ -85,11 +82,12 @@ class TwoFactorRepositoryImpl @Inject constructor(
                     when (statusCode) {
                         400, 401 -> {
                             if (message.contains("password", ignoreCase = true)) {
-                                WrongPasswordFailure(detail = message)
+                                WrongPasswordFailure()
                             } else {
-                                WrongTwoFactorCodeFailure(detail = message)
+                                WrongTwoFactorCodeFailure()
                             }
                         }
+                        422 -> WrongTwoFactorCodeFailure()
                         429 -> SignInDelayedFailure(
                             parsed?.retryAfterSeconds
                                 ?: retryAfterSeconds
@@ -127,11 +125,12 @@ class TwoFactorRepositoryImpl @Inject constructor(
                     when (statusCode) {
                         400, 401 -> {
                             if (message.contains("password", ignoreCase = true)) {
-                                WrongPasswordFailure(detail = message)
+                                WrongPasswordFailure()
                             } else {
-                                WrongTwoFactorCodeFailure(detail = message)
+                                WrongTwoFactorCodeFailure()
                             }
                         }
+                        422 -> WrongTwoFactorCodeFailure()
                         429 -> SignInDelayedFailure(
                             parsed?.retryAfterSeconds
                                 ?: retryAfterSeconds

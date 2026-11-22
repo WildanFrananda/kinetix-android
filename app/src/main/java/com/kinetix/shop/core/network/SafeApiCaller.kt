@@ -57,7 +57,6 @@ class SafeApiCaller @Inject constructor(
                 val requestId = extractHeaderRequestId(response)
                 Err(
                     UnreadableAnswerFailure(
-                        detail = "Empty response body on HTTP ${response.code()}",
                         requestId = requestId,
                     )
                 )
@@ -111,24 +110,21 @@ class SafeApiCaller @Inject constructor(
             throw exception
         } catch (_: SocketTimeoutException) {
             return Err(TimeoutFailure)
-        } catch (exception: SerializationException) {
+        } catch (_: SerializationException) {
             return Err(
                 UnreadableAnswerFailure(
-                    detail = exception.message ?: "Unreadable response payload",
                     requestId = correlationRecorder.latestRequestId(),
                 )
             )
-        } catch (exception: IOException) {
+        } catch (_: IOException) {
             return Err(
                 NetworkFailure(
-                    detail = exception.message ?: "Network error",
                     requestId = correlationRecorder.latestRequestId(),
                 )
             )
-        } catch (exception: Exception) {
+        } catch (_: Exception) {
             return Err(
                 UnreadableAnswerFailure(
-                    detail = exception.message ?: "Unexpected transport error",
                     requestId = correlationRecorder.latestRequestId(),
                 )
             )
@@ -141,10 +137,9 @@ class SafeApiCaller @Inject constructor(
                 transform(body)
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (exception: Exception) {
+            } catch (_: Exception) {
                 Err(
                     UnreadableAnswerFailure(
-                        detail = exception.message ?: "Failed to map response",
                         requestId = headerRequestId,
                     )
                 )

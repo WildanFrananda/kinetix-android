@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kinetix.shop.R
+import com.kinetix.shop.core.format.LocaleFormatter
 import com.kinetix.shop.models.catalog.ProductSummary
 import com.kinetix.shop.models.catalog.StockStatus
 import com.kinetix.shop.ui.theme.KinetixPalette
@@ -84,7 +85,10 @@ fun ProductSummaryCard(
                 modifier = Modifier.height(6.dp),
             )
             Text(
-                text = "${item.currency} ${item.price}",
+                text = LocaleFormatter.formatMoney(
+                    amountString = item.price,
+                    currencyCode = item.currency,
+                ),
                 style = MaterialTheme.typography.headlineMedium,
                 color = KinetixPalette.ElectricVolt,
             )

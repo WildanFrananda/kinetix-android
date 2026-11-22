@@ -1,6 +1,7 @@
 package com.kinetix.shop.repositories.auth
 
 import com.kinetix.shop.core.failure.StorageFailure
+import com.kinetix.shop.core.failure.StorageFailureReason
 import com.kinetix.shop.core.failure.UnauthorizedFailure
 import com.kinetix.shop.core.network.ApiErrorParser
 import com.kinetix.shop.core.network.HttpFailureMapper
@@ -100,7 +101,7 @@ class SessionRepositoryImplTest {
     fun restoreSessionSetsUnreadableWithoutClearingStore() = runTest {
         val appScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
         val tokenStore = FakeTokenStore(
-            readFailure = StorageFailure("Keystore invalidated"),
+            readFailure = StorageFailure(StorageFailureReason.READ_FAILED),
         )
         val repository = SessionRepositoryImpl(
             apiService = FakeIdentityApiService(),
@@ -394,7 +395,7 @@ class SessionRepositoryImplTest {
         val result = repository.withValidSession { session ->
             seenTokens.add(session.accessToken)
             if (session.accessToken == "acc-expired") {
-                Err(UnauthorizedFailure("EXPIRED", "Expired"))
+                Err(UnauthorizedFailure("EXPIRED"))
             } else {
                 Ok("ok-after-renew")
             }

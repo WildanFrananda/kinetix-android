@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
+import com.kinetix.shop.models.common.DataOrigin
 import com.kinetix.shop.state.profile.ProfileErrorUiState
 import com.kinetix.shop.state.profile.ProfileLoadedUiState
 import com.kinetix.shop.state.profile.ProfileLoadingUiState
@@ -168,6 +169,12 @@ fun ProfileScreen(
                 if (loadedState?.queuedOfflineBanner == true) {
                     Text(
                         text = stringResource(R.string.profile_queued_offline_banner),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = KinetixPalette.WarningAmber,
+                    )
+                } else if (currentProfile?.dataOrigin == DataOrigin.CACHE) {
+                    Text(
+                        text = stringResource(R.string.data_cached_banner),
                         style = MaterialTheme.typography.labelMedium,
                         color = KinetixPalette.WarningAmber,
                     )

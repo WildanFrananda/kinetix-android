@@ -8,7 +8,7 @@ import com.kinetix.shop.services.session.SessionRenewer
 
 class FakeSessionRenewer(
     var nextResult: Result<StoredSession> = Err(
-        UnauthorizedFailure("SESSION_EXPIRED", "Session expired")
+        UnauthorizedFailure("SESSION_EXPIRED")
     ),
     private val onRenew: (() -> Unit)? = null,
 ) : SessionRenewer {

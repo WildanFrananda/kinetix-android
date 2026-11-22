@@ -10,10 +10,10 @@ import com.kinetix.shop.repositories.profile.ProfileRepository
 
 class FakeProfileRepository : ProfileRepository {
     var getProfileResult: Result<DeliveryProfile> = Err(
-        UnauthorizedFailure("NOT_CONFIGURED", "Not configured")
+        UnauthorizedFailure("NOT_CONFIGURED")
     )
     var updateProfileResult: Result<ProfileUpdateOutcome> = Err(
-        UnauthorizedFailure("NOT_CONFIGURED", "Not configured")
+        UnauthorizedFailure("NOT_CONFIGURED")
     )
     var lastUpdatedInput: UpdateDeliveryProfileInput? = null
 

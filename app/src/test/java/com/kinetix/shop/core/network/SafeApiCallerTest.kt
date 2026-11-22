@@ -129,7 +129,7 @@ class SafeApiCallerTest {
                     rawResponse,
                 )
             },
-            onErrorOverride = { _, _, _ -> WrongPasswordFailure("Invalid") },
+            onErrorOverride = { _, _, _ -> WrongPasswordFailure() },
             transform = { Ok(it) },
         )
         assertEquals("hdr-req-4", (overrideResult as Err).failure.requestId)

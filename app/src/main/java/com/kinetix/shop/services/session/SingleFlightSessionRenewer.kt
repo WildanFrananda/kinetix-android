@@ -64,7 +64,6 @@ class SingleFlightSessionRenewer @Inject constructor(
             return Err(
                 UnauthorizedFailure(
                     code = "NO_SESSION",
-                    detail = "No stored session is available to renew",
                 )
             )
         }
@@ -90,7 +89,6 @@ class SingleFlightSessionRenewer @Inject constructor(
                 Err(
                     UnauthorizedFailure(
                         code = outcome.errorCode ?: "SESSION_REFUSED_${outcome.statusCode}",
-                        detail = outcome.message,
                     )
                 )
             }
@@ -101,7 +99,6 @@ class SingleFlightSessionRenewer @Inject constructor(
                 Err(
                     UnauthorizedFailure(
                         code = "SESSION_AMBIGUOUS_DROP",
-                        detail = outcome.detail,
                     )
                 )
             }

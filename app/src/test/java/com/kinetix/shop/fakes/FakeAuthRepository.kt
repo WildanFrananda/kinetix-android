@@ -9,13 +9,13 @@ import com.kinetix.shop.repositories.auth.AuthRepository
 
 class FakeAuthRepository : AuthRepository {
     var registerResult: Result<StoredSession> = Err(
-        UnauthorizedFailure("NOT_CONFIGURED", "Not configured")
+        UnauthorizedFailure("NOT_CONFIGURED")
     )
     var signInResult: Result<SignInOutcome> = Err(
-        UnauthorizedFailure("NOT_CONFIGURED", "Not configured")
+        UnauthorizedFailure("NOT_CONFIGURED")
     )
     var verifyTwoFactorResult: Result<StoredSession> = Err(
-        UnauthorizedFailure("NOT_CONFIGURED", "Not configured")
+        UnauthorizedFailure("NOT_CONFIGURED")
     )
 
     var signInCallCount: Int = 0

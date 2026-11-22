@@ -29,10 +29,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
+import com.kinetix.shop.core.format.LocaleFormatter
 import com.kinetix.shop.models.ids.CategorySlug
 import com.kinetix.shop.models.ids.ProductSku
 import com.kinetix.shop.state.search.SearchErrorUiState
@@ -43,8 +45,6 @@ import com.kinetix.shop.ui.components.ErrorBannerBlock
 import com.kinetix.shop.ui.components.LoadingIndicatorBlock
 import com.kinetix.shop.ui.theme.KinetixPalette
 import com.kinetix.shop.viewmodels.search.SearchViewModel
-import java.math.BigDecimal
-import java.math.RoundingMode
 
 @Composable
 fun SearchScreen(
@@ -230,8 +230,9 @@ fun SearchScreen(
                 }
 
                 Text(
-                    text = stringResource(
-                        R.string.search_results_count,
+                    text = pluralStringResource(
+                        R.plurals.search_results_count,
+                        current.searchResult.total,
                         current.searchResult.total,
                     ),
                     style = MaterialTheme.typography.labelMedium,
@@ -246,9 +247,10 @@ fun SearchScreen(
                     modifier = Modifier.weight(1f),
                 ) {
                     items(current.searchResult.hits) { hit ->
-                        val formattedPrice = BigDecimal.valueOf(hit.priceMinor)
-                            .divide(BigDecimal("100"), 2, RoundingMode.HALF_UP)
-                            .toPlainString()
+                        val formattedPrice = LocaleFormatter.formatMinorMoney(
+                            amountMinor = hit.priceMinor,
+                            currencyCode = hit.currency,
+                        )
 
                         Card(
                             colors = CardDefaults.cardColors(
@@ -283,7 +285,7 @@ fun SearchScreen(
                                     modifier = Modifier.height(6.dp),
                                 )
                                 Text(
-                                    text = "${hit.currency} $formattedPrice",
+                                    text = formattedPrice,
                                     style = MaterialTheme.typography.headlineMedium,
                                     color = KinetixPalette.ElectricVolt,
                                 )
