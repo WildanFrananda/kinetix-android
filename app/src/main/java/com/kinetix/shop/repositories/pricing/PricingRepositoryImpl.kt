@@ -5,6 +5,7 @@ import com.kinetix.shop.core.network.SafeApiCaller
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.result.Result
+import com.kinetix.shop.dto.pricing.FlashSaleDto
 import com.kinetix.shop.models.ids.CategorySlug
 import com.kinetix.shop.models.ids.PrincipalId
 import com.kinetix.shop.models.ids.ProductSku
@@ -17,27 +18,58 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 
 @Singleton
 class PricingRepositoryImpl @Inject constructor(
     private val apiService: PricingApiService,
     private val safeApiCaller: SafeApiCaller,
+    private val json: Json,
 ) : PricingRepository {
+    constructor(
+        apiService: PricingApiService,
+        safeApiCaller: SafeApiCaller,
+    ) : this(
+        apiService = apiService,
+        safeApiCaller = safeApiCaller,
+        json = Json {
+            ignoreUnknownKeys = true
+            explicitNulls = false
+            encodeDefaults = true
+        },
+    )
+
     override suspend fun getFlashSale(
         sku: ProductSku,
     ): Result<FlashSale?> {
-        return safeApiCaller.executeNullable(
+        return safeApiCaller.execute(
             call = {
                 apiService.getFlashSale(
                     productSku = sku.value,
                 )
             },
-            onNullSuccess = {
-                Ok(null)
-            },
-            transform = { dto ->
+            transform = { element ->
+                if (element is JsonNull) {
+                    return@execute Ok(null)
+                }
+
+                val dto = try {
+                    json.decodeFromJsonElement(
+                        FlashSaleDto.serializer(),
+                        element,
+                    )
+                } catch (exception: SerializationException) {
+                    return@execute Err(
+                        UnreadableAnswerFailure(
+                            exception.message ?: "Unreadable flash sale response",
+                        )
+                    )
+                }
+
                 if (dto.flashPrice.toBigDecimalOrNull() == null) {
-                    return@executeNullable Err(
+                    return@execute Err(
                         UnreadableAnswerFailure("Invalid flash sale price '${dto.flashPrice}'")
                     )
                 }
@@ -53,7 +85,7 @@ class PricingRepositoryImpl @Inject constructor(
                         active = dto.active,
                         startTime = dto.startTime,
                         endTime = dto.endTime,
-                        merchantPrincipalId = PrincipalId(dto.merchantPrincipalId),
+                        merchantPrincipalId = dto.merchantPrincipalId?.let { PrincipalId(it) },
                     )
                 )
             },

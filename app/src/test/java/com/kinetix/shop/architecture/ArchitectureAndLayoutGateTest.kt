@@ -20,6 +20,7 @@ class ArchitectureAndLayoutGateTest {
     fun commentScannerHandlesStringsCharsUrlsAndTrailingComments() {
         assertFalse(containsCommentOutsideLiterals("""val expected = "a // b""""))
         assertFalse(containsCommentOutsideLiterals("""val url = "https://api.kinetix.invalid""""))
+        assertFalse(containsCommentOutsideLiterals("val json = \"\"\"{\"url\":\"https://api.kinetix.invalid\"}\"\"\""))
         assertFalse(containsCommentOutsideLiterals("""val slash = '/'"""))
         assertTrue(containsCommentOutsideLiterals("""val value = "x" // note"""))
         assertTrue(containsCommentOutsideLiterals("""val c = '/' // note"""))
@@ -206,12 +207,22 @@ class ArchitectureAndLayoutGateTest {
     }
 
     private fun containsCommentOutsideLiterals(line: String): Boolean {
+        var inTripleQuote = false
         var inDoubleQuote = false
         var inSingleQuote = false
         var escaped = false
         var index = 0
         while (index < line.length) {
             val ch = line[index]
+            if (inTripleQuote) {
+                if (line.startsWith("\"\"\"", index)) {
+                    inTripleQuote = false
+                    index += 3
+                } else {
+                    index += 1
+                }
+                continue
+            }
             if (escaped) {
                 escaped = false
                 index += 1
@@ -233,6 +244,11 @@ class ArchitectureAndLayoutGateTest {
                     inSingleQuote = false
                 }
                 index += 1
+                continue
+            }
+            if (line.startsWith("\"\"\"", index)) {
+                inTripleQuote = true
+                index += 3
                 continue
             }
             if (ch == '"') {

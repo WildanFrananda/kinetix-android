@@ -12,6 +12,7 @@ import com.kinetix.shop.models.ids.PrincipalId
 import com.kinetix.shop.models.ids.ProductSku
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -32,17 +33,20 @@ class PricingRepositoryImplTest {
         val apiService = FakePricingApiService().apply {
             getFlashSaleHandler = {
                 Response.success(
-                    FlashSaleDto(
-                        id = "fs-1",
-                        title = "Noon Flash",
-                        productId = "SKU-1",
-                        flashPrice = "75.00",
-                        stockLimit = 50,
-                        stockSold = 10,
-                        active = true,
-                        startTime = "2026-10-20T10:00:00Z",
-                        endTime = "2026-10-20T14:00:00Z",
-                        merchantPrincipalId = "merch-1",
+                    json.encodeToJsonElement(
+                        FlashSaleDto.serializer(),
+                        FlashSaleDto(
+                            id = "fs-1",
+                            title = "Noon Flash",
+                            productId = "SKU-1",
+                            flashPrice = "75.00",
+                            stockLimit = 50,
+                            stockSold = 10,
+                            active = true,
+                            startTime = "2026-10-20T10:00:00Z",
+                            endTime = "2026-10-20T14:00:00Z",
+                            merchantPrincipalId = "merch-1",
+                        ),
                     )
                 )
             }
@@ -68,6 +72,7 @@ class PricingRepositoryImplTest {
         val repository = PricingRepositoryImpl(
             apiService = apiService,
             safeApiCaller = safeApiCaller,
+            json = json,
         )
 
         val result = repository.computePriceIndication(
@@ -85,9 +90,40 @@ class PricingRepositoryImplTest {
     }
 
     @Test
+    fun computePriceIndicationAppliesPlatformFlashSaleWithNullMerchantPrincipalId() = runTest {
+        val apiService = FakePricingApiService().apply {
+            getFlashSaleHandler = {
+                Response.success(
+                    json.parseToJsonElement(
+                        """{"id":"fs-platform","title":"Platform Flash","product_id":"SKU-1","flash_price":"60.00","stock_limit":20,"stock_sold":2,"active":true,"start_time":"2026-10-20T10:00:00Z","end_time":"2026-10-20T14:00:00Z","merchant_principal_id":null}"""
+                    )
+                )
+            }
+        }
+        val repository = PricingRepositoryImpl(
+            apiService = apiService,
+            safeApiCaller = safeApiCaller,
+            json = json,
+        )
+
+        val result = repository.computePriceIndication(
+            sku = ProductSku("SKU-1"),
+            categorySlug = CategorySlug("audio"),
+            merchantPrincipalId = PrincipalId("merch-1"),
+            catalogPrice = "100.00",
+            currency = "IDR",
+        )
+        assertTrue(result is Ok)
+        val indication = (result as Ok).value
+        assertEquals("60.00", indication.effectivePrice)
+        assertNotNull(indication.appliedFlashSale)
+        assertNull(indication.appliedFlashSale?.merchantPrincipalId)
+    }
+
+    @Test
     fun computePriceIndicationFallsBackToMatchingMerchantDiscountWhenNoFlashSale() = runTest {
         val apiService = FakePricingApiService().apply {
-            getFlashSaleHandler = { Response.success(null) }
+            getFlashSaleHandler = { Response.success(JsonNull) }
             listDiscountsHandler = {
                 Response.success(
                     listOf(
@@ -110,6 +146,7 @@ class PricingRepositoryImplTest {
         val repository = PricingRepositoryImpl(
             apiService = apiService,
             safeApiCaller = safeApiCaller,
+            json = json,
         )
 
         val result = repository.computePriceIndication(

@@ -81,17 +81,31 @@ object FailureMessageMapper {
                 }
             }
             is ValidationFailure -> {
-                failure.detail.ifBlank { stringResource(R.string.error_validation_generic) }
+                when (failure.code) {
+                    "malformed_query" -> stringResource(R.string.error_search_malformed_query)
+                    else -> failure.detail.ifBlank { stringResource(R.string.error_validation_generic) }
+                }
             }
             is TimeoutFailure -> stringResource(R.string.error_timeout)
-            is UnavailableFailure -> stringResource(R.string.error_unavailable)
+            is UnavailableFailure -> {
+                when (failure.code) {
+                    "index_unavailable",
+                    "dependency_unavailable",
+                    "stale" -> stringResource(R.string.error_search_index_unavailable)
+
+                    else -> stringResource(R.string.error_unavailable)
+                }
+            }
             is NetworkFailure -> failure.detail.ifBlank { stringResource(R.string.error_network) }
             is UnreadableAnswerFailure -> {
                 failure.detail.ifBlank { stringResource(R.string.error_unreadable_response) }
             }
             is StorageFailure -> failure.detail.ifBlank { stringResource(R.string.error_storage) }
             is UnknownOutcomeFailure -> {
-                failure.detail.ifBlank { stringResource(R.string.error_unknown_outcome) }
+                when (failure.code) {
+                    "corrupt_record" -> stringResource(R.string.error_search_corrupt_record)
+                    else -> failure.detail.ifBlank { stringResource(R.string.error_unknown_outcome) }
+                }
             }
         }
     }

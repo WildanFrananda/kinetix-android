@@ -108,8 +108,10 @@
     <string name="search_button">Go</string>
     <string name="search_sort_relevance">Relevance</string>
     <string name="search_sort_price_asc">Price ↑</string>
-    <string name="search_sort_price_desc">Price ↓</string>
     <string name="search_sort_newest">Newest</string>
+    <string name="error_search_malformed_query">The search query or filter is not valid.</string>
+    <string name="error_search_index_unavailable">Search is temporarily unavailable right now. Please try again shortly.</string>
+    <string name="error_search_corrupt_record">Some search results could not be read.</string>
     <string name="search_idle_prompt">Enter a search term or tap Go to browse indexed products.</string>
     <string name="search_loading">Searching…</string>
     <string name="search_stale_index_banner">Search index is refreshing; very recent catalog changes may take a moment to appear.</string>

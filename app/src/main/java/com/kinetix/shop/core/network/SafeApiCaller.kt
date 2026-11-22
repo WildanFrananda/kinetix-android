@@ -158,6 +158,9 @@ class SafeApiCaller @Inject constructor(
             null
         }
         val retryAfterSeconds = response.headers()["Retry-After"]?.toIntOrNull()
+            ?: response.headers()["x-ratelimit-reset"]?.toIntOrNull()
+        val requestMethod = response.raw().request.method
+        val isWrite = requestMethod != "GET" && requestMethod != "HEAD"
 
         val customFailure = onErrorOverride?.invoke(
             statusCode,
@@ -174,6 +177,7 @@ class SafeApiCaller @Inject constructor(
                 rawErrorBody = rawErrorBody,
                 retryAfterHeaderSeconds = retryAfterSeconds,
                 requestId = headerRequestId,
+                isWrite = isWrite,
             )
         )
     }

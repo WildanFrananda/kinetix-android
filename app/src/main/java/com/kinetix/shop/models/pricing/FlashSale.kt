@@ -13,7 +13,7 @@ data class FlashSale(
     val active: Boolean,
     val startTime: String,
     val endTime: String,
-    val merchantPrincipalId: PrincipalId,
+    val merchantPrincipalId: PrincipalId? = null,
 ) {
     val remainingQuota: Int
         get() = (stockLimit - stockSold).coerceAtLeast(0)

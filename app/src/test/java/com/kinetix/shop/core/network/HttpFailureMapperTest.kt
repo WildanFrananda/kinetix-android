@@ -49,5 +49,46 @@ class HttpFailureMapperTest {
 
         val generic = mapper.map(429, null, 45)
         assertEquals(RateLimitedFailure(45), generic)
+
+        val defaultWait = mapper.map(429, "Too Many Requests", null)
+        assertEquals(RateLimitedFailure(60), defaultWait)
+    }
+
+    @Test
+    fun classifiesByStatusCodeAndBodyOriginForGatewayAndPayment() {
+        val gatewayWrite503 = mapper.map(
+            statusCode = 503,
+            rawErrorBody = "upstream connect error",
+            retryAfterHeaderSeconds = null,
+            isWrite = true,
+        )
+        assertTrue(gatewayWrite503 is UnknownOutcomeFailure)
+        assertEquals("GATEWAY_503", (gatewayWrite503 as UnknownOutcomeFailure).code)
+
+        val gatewayRead503 = mapper.map(
+            statusCode = 503,
+            rawErrorBody = "upstream connect error",
+            retryAfterHeaderSeconds = null,
+            isWrite = false,
+        )
+        assertTrue(gatewayRead503 is UnavailableFailure)
+        assertEquals("GATEWAY_503", (gatewayRead503 as UnavailableFailure).code)
+
+        val service503 = mapper.map(
+            statusCode = 503,
+            rawErrorBody = """{"error":"DATABASE_UNAVAILABLE","message":"DB down"}""",
+            retryAfterHeaderSeconds = null,
+            isWrite = true,
+        )
+        assertTrue(service503 is UnavailableFailure)
+        assertEquals("DATABASE_UNAVAILABLE", (service503 as UnavailableFailure).code)
+
+        val payment422 = mapper.map(
+            statusCode = 422,
+            rawErrorBody = """{"error":"Limit exceeded","code":"TOP_UP_AMOUNT_ABOVE_LIMIT","limit":"2000000"}""",
+            retryAfterHeaderSeconds = null,
+        )
+        assertTrue(payment422 is ValidationFailure)
+        assertEquals("TOP_UP_AMOUNT_ABOVE_LIMIT", (payment422 as ValidationFailure).code)
     }
 }

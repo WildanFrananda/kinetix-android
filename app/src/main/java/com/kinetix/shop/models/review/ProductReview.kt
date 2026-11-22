@@ -10,5 +10,5 @@ data class ProductReview(
     val rating: Int,
     val comment: String?,
     val createdAt: String,
-    val merchantPrincipalId: PrincipalId,
+    val merchantPrincipalId: PrincipalId? = null,
 )

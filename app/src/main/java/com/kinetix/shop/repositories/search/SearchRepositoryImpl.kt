@@ -75,7 +75,7 @@ class SearchRepositoryImpl @Inject constructor(
                     ProductSearchResult(
                         total = dto.total,
                         hits = hits,
-                        categoryFacets = dto.facets.categories.map { entry ->
+                        categoryFacets = dto.facets?.categories.orEmpty().map { entry ->
                             SearchFacetCount(
                                 value = entry.value,
                                 count = entry.count,
