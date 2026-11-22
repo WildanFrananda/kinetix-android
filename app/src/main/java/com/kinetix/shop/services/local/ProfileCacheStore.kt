@@ -8,9 +8,21 @@ interface ProfileCacheStore {
         profile: DeliveryProfile,
     )
 
+    suspend fun saveOptimisticProfile(
+        profile: DeliveryProfile,
+    )
+
     suspend fun getProfile(
         accountId: AccountId,
     ): DeliveryProfile?
+
+    suspend fun getConfirmedProfile(
+        accountId: AccountId,
+    ): DeliveryProfile?
+
+    suspend fun withdrawOptimisticProfile(
+        accountId: AccountId,
+    )
 
     suspend fun clearProfile(
         accountId: AccountId,

@@ -10,9 +10,13 @@ import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.result.Result
 import com.kinetix.shop.dto.profile.UserProfileResponseDto
+import com.kinetix.shop.models.common.DataOrigin
 import com.kinetix.shop.models.ids.AccountId
 import com.kinetix.shop.models.outbox.OutboxOperationType
 import com.kinetix.shop.models.profile.DeliveryProfile
+import com.kinetix.shop.models.profile.ProfileUpdateConfirmed
+import com.kinetix.shop.models.profile.ProfileUpdateOutcome
+import com.kinetix.shop.models.profile.ProfileUpdateQueued
 import com.kinetix.shop.models.profile.UpdateDeliveryProfileInput
 import com.kinetix.shop.repositories.auth.SessionRepository
 import com.kinetix.shop.services.local.OutboxStore
@@ -46,17 +50,17 @@ class ProfileRepositoryImpl @Inject constructor(
             )
             when (networkResult) {
                 is Ok -> {
-                    profileCacheStore.saveProfile(networkResult.value)
+                    safeCacheAction { profileCacheStore.saveProfile(networkResult.value) }
                     networkResult
                 }
 
                 is Err -> {
                     if (networkResult.failure is NotFoundFailure) {
-                        profileCacheStore.clearProfile(session.accountId)
+                        safeCacheAction { profileCacheStore.clearProfile(session.accountId) }
                         return@withValidSession networkResult
                     }
                     if (canFallbackToCache(networkResult.failure)) {
-                        val cached = profileCacheStore.getProfile(session.accountId)
+                        val cached = safeCacheQuery { profileCacheStore.getProfile(session.accountId) }
                         if (cached != null) {
                             return@withValidSession Ok(cached)
                         }
@@ -69,9 +73,11 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override suspend fun updateProfile(
         input: UpdateDeliveryProfileInput,
-    ): Result<DeliveryProfile> {
+    ): Result<ProfileUpdateOutcome> {
         return sessionRepository.withValidSession { session ->
             val payloadObject = input.toJsonObject()
+            val payloadJson = payloadObject.toString()
+            val dedupeKey = "profile:${session.accountId.value}"
             val networkResult = safeApiCaller.execute(
                 call = {
                     apiService.updateProfile(
@@ -86,24 +92,35 @@ class ProfileRepositoryImpl @Inject constructor(
             )
             when (networkResult) {
                 is Ok -> {
-                    profileCacheStore.saveProfile(networkResult.value)
-                    networkResult
+                    safeCacheAction { profileCacheStore.saveProfile(networkResult.value) }
+                    safeCacheAction {
+                        outboxStore.reconcileConfirmedFields(
+                            dedupeKey = dedupeKey,
+                            confirmedPayloadJson = payloadJson,
+                        )
+                    }
+                    Ok(ProfileUpdateConfirmed(networkResult.value))
                 }
 
                 is Err -> {
                     if (isOfflineMutationEligible(networkResult.failure)) {
-                        val existing = profileCacheStore.getProfile(session.accountId)
+                        val existing = safeCacheQuery {
+                            profileCacheStore.getProfile(session.accountId)
+                                ?: profileCacheStore.getConfirmedProfile(session.accountId)
+                        }
                         if (existing != null) {
                             val optimistic = applyInput(existing, input)
-                            profileCacheStore.saveProfile(optimistic)
                             outboxStore.enqueue(
                                 principalId = session.principalId,
                                 operationType = OutboxOperationType.PROFILE_UPDATE,
-                                dedupeKey = "profile:${session.accountId.value}",
-                                payloadJson = payloadObject.toString(),
+                                dedupeKey = dedupeKey,
+                                payloadJson = payloadJson,
                             )
+                            safeCacheAction {
+                                profileCacheStore.saveOptimisticProfile(optimistic)
+                            }
                             outboxSyncScheduler.scheduleSync()
-                            return@withValidSession Ok(optimistic)
+                            return@withValidSession Ok(ProfileUpdateQueued(optimistic))
                         }
                     }
                     networkResult
@@ -128,6 +145,8 @@ class ProfileRepositoryImpl @Inject constructor(
             city = input.city ?: existing.city,
             postalCode = input.postalCode ?: existing.postalCode,
             avatarUrl = nextAvatar,
+            dataOrigin = DataOrigin.CACHE,
+            isConfirmed = false,
         )
     }
 
@@ -169,6 +188,28 @@ class ProfileRepositoryImpl @Inject constructor(
             latitude = dto.latitude,
             longitude = dto.longitude,
             geocodedAt = dto.geocodedAt,
+            dataOrigin = DataOrigin.LIVE,
+            cachedAtEpochSeconds = null,
+            isConfirmed = true,
         )
+    }
+
+    private suspend fun safeCacheAction(
+        action: suspend () -> Unit,
+    ) {
+        try {
+            action()
+        } catch (_: Exception) {
+        }
+    }
+
+    private suspend fun <T> safeCacheQuery(
+        query: suspend () -> T?,
+    ): T? {
+        return try {
+            query()
+        } catch (_: Exception) {
+            null
+        }
     }
 }

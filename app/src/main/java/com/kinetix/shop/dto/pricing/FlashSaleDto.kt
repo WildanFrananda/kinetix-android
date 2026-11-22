@@ -21,5 +21,5 @@ data class FlashSaleDto(
     @SerialName("end_time")
     val endTime: String,
     @SerialName("merchant_principal_id")
-    val merchantPrincipalId: String,
+    val merchantPrincipalId: String? = null,
 )

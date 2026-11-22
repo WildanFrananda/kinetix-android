@@ -18,6 +18,7 @@ import com.kinetix.shop.models.auth.SessionUnreadable
 import com.kinetix.shop.models.auth.StoredSession
 import com.kinetix.shop.models.ids.AccountId
 import com.kinetix.shop.models.ids.PrincipalId
+import com.kinetix.shop.services.local.ProfileCacheStore
 import com.kinetix.shop.services.remote.IdentityApiService
 import com.kinetix.shop.services.session.SessionRenewer
 import com.kinetix.shop.services.storage.TokenStore
@@ -43,6 +44,7 @@ class SessionRepositoryImpl @Inject constructor(
     private val safeApiCaller: SafeApiCaller,
     private val tokenStore: TokenStore,
     private val sessionRenewer: SessionRenewer,
+    private val profileCacheStore: ProfileCacheStore,
     private val clock: Clock,
     private val crashReporter: CrashReporter,
     @ApplicationScope private val applicationScope: CoroutineScope,
@@ -117,7 +119,7 @@ class SessionRepositoryImpl @Inject constructor(
                 }
 
                 is Err -> {
-                    syncAfterRenewFailure()
+                    syncAfterRenewFailure(baseSession.accountId)
                     return Err(renewed.failure)
                 }
             }
@@ -134,7 +136,7 @@ class SessionRepositoryImpl @Inject constructor(
                 }
 
                 is Err -> {
-                    syncAfterRenewFailure()
+                    syncAfterRenewFailure(readySession.accountId)
                     Err(renewed.failure)
                 }
             }
@@ -164,6 +166,7 @@ class SessionRepositoryImpl @Inject constructor(
                         is Ok -> {
                             val persisted = remaining.value
                             if (persisted == null) {
+                                clearCachedProfile(loaded.accountId)
                                 setSignedOut()
                                 Ok(null)
                             } else {
@@ -199,6 +202,7 @@ class SessionRepositoryImpl @Inject constructor(
                     }
                     if (rechecked is Err && rechecked.failure is UnauthorizedFailure) {
                         tokenStore.clear()
+                        clearCachedProfile(activeSession.accountId)
                         setSignedOut()
                         return Ok(null)
                     }
@@ -211,6 +215,7 @@ class SessionRepositoryImpl @Inject constructor(
                         is Ok -> {
                             val persisted = remaining.value
                             if (persisted == null) {
+                                clearCachedProfile(activeSession.accountId)
                                 setSignedOut()
                                 Ok(null)
                             } else {
@@ -251,6 +256,7 @@ class SessionRepositoryImpl @Inject constructor(
                     is Ok -> renewed.value
                     is Err -> {
                         if (renewed.failure is UnauthorizedFailure) {
+                            clearCachedProfile(initial.accountId)
                             setSignedOut()
                             return Ok(UnitSentinel)
                         }
@@ -270,6 +276,7 @@ class SessionRepositoryImpl @Inject constructor(
                     message = "logout_unconfirmed",
                 )
             }
+            clearCachedProfile(initial.accountId)
         }
 
         tokenStore.clear()
@@ -309,15 +316,27 @@ class SessionRepositoryImpl @Inject constructor(
         )
     }
 
-    private suspend fun syncAfterRenewFailure() {
+    private suspend fun syncAfterRenewFailure(
+        accountId: AccountId,
+    ) {
         when (val remaining = tokenStore.read()) {
             is Ok -> {
                 if (remaining.value == null) {
+                    clearCachedProfile(accountId)
                     setSignedOut()
                 }
             }
 
             is Err -> setUnreadable()
+        }
+    }
+
+    private suspend fun clearCachedProfile(
+        accountId: AccountId,
+    ) {
+        try {
+            profileCacheStore.clearProfile(accountId)
+        } catch (_: Exception) {
         }
     }
 

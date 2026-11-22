@@ -15,5 +15,5 @@ data class ReviewItemDto(
     @SerialName("updated_at")
     val updatedAt: String? = null,
     @SerialName("merchant_principal_id")
-    val merchantPrincipalId: String,
+    val merchantPrincipalId: String? = null,
 )

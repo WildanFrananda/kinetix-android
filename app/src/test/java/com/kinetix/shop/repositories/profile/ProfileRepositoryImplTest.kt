@@ -15,6 +15,8 @@ import com.kinetix.shop.models.ids.AccountId
 import com.kinetix.shop.models.ids.PrincipalId
 import com.kinetix.shop.models.outbox.OutboxOperationType
 import com.kinetix.shop.models.profile.DeliveryProfile
+import com.kinetix.shop.models.profile.ProfileUpdateConfirmed
+import com.kinetix.shop.models.profile.ProfileUpdateQueued
 import com.kinetix.shop.models.profile.UpdateDeliveryProfileInput
 import java.io.IOException
 import kotlinx.coroutines.test.runTest
@@ -44,7 +46,7 @@ class ProfileRepositoryImplTest {
     )
 
     @Test
-    fun updateProfileSerializesOnlyChangedFieldsAndExplicitAvatarNull() = runTest {
+    fun updateProfileSerializesOnlyChangedFieldsAndExplicitAvatarNullAndReconcilesOutbox() = runTest {
         var capturedAvatarIsJsonNull = false
         var hasPhoneNumberField = false
         val apiService = FakeIdentityApiService().apply {
@@ -69,12 +71,19 @@ class ProfileRepositoryImplTest {
             }
         }
         val cacheStore = FakeProfileCacheStore()
+        val outboxStore = FakeOutboxStore()
+        outboxStore.enqueue(
+            principalId = initialSession.principalId,
+            operationType = OutboxOperationType.PROFILE_UPDATE,
+            dedupeKey = "profile:22",
+            payloadJson = """{"streetAddress":"Jl. Lama","city":"Bandung"}""",
+        )
         val repository = ProfileRepositoryImpl(
             apiService = apiService,
             safeApiCaller = safeApiCaller,
             sessionRepository = FakeSessionRepository(initialSession = initialSession),
             profileCacheStore = cacheStore,
-            outboxStore = FakeOutboxStore(),
+            outboxStore = outboxStore,
             outboxSyncScheduler = FakeOutboxSyncScheduler(),
         )
 
@@ -85,14 +94,18 @@ class ProfileRepositoryImplTest {
             )
         )
         assertTrue(result is Ok)
+        val outcome = (result as Ok).value
+        assertTrue(outcome is ProfileUpdateConfirmed)
+        val confirmed = (outcome as ProfileUpdateConfirmed).profile
         assertTrue(capturedAvatarIsJsonNull)
         assertFalse(hasPhoneNumberField)
-        assertEquals("Jl. Sudirman No. 1", (result as Ok).value.streetAddress)
+        assertEquals("Jl. Sudirman No. 1", confirmed.streetAddress)
         assertEquals("Jl. Sudirman No. 1", cacheStore.getProfile(AccountId(22L))?.streetAddress)
+        assertEquals("""{"city":"Bandung"}""", outboxStore.allEntries().single().payloadJson)
     }
 
     @Test
-    fun updateProfileWhileOfflineOptimisticallyUpdatesCacheAndEnqueuesOutboxEntry() = runTest {
+    fun updateProfileWhileOfflineMergesOutboxPayloadsAndReturnsProfileUpdateQueued() = runTest {
         val cacheStore = FakeProfileCacheStore()
         cacheStore.saveProfile(
             DeliveryProfile(
@@ -125,20 +138,30 @@ class ProfileRepositoryImplTest {
             outboxSyncScheduler = syncScheduler,
         )
 
-        val result = repository.updateProfile(
+        val firstResult = repository.updateProfile(
             UpdateDeliveryProfileInput(
                 streetAddress = "Jl. Baru No. 99",
+            )
+        )
+        assertTrue(firstResult is Ok)
+        assertTrue((firstResult as Ok).value is ProfileUpdateQueued)
+
+        val secondResult = repository.updateProfile(
+            UpdateDeliveryProfileInput(
                 city = "Jakarta",
             )
         )
-
-        assertTrue(result is Ok)
-        val updated = (result as Ok).value
-        assertEquals("Jl. Baru No. 99", updated.streetAddress)
-        assertEquals("Jakarta", updated.city)
+        assertTrue(secondResult is Ok)
+        val queued = (secondResult as Ok).value as ProfileUpdateQueued
+        assertEquals("Jl. Baru No. 99", queued.profile.streetAddress)
+        assertEquals("Jakarta", queued.profile.city)
+        assertFalse(queued.profile.isConfirmed)
         assertEquals("Jl. Baru No. 99", cacheStore.getProfile(AccountId(22L))?.streetAddress)
+        assertEquals("Jl. Lama No. 10", cacheStore.getConfirmedProfile(AccountId(22L))?.streetAddress)
         assertEquals(1, outboxStore.countPending())
-        assertEquals(OutboxOperationType.PROFILE_UPDATE, outboxStore.allEntries().single().operationType)
-        assertEquals(1, syncScheduler.scheduleCount)
+        val entry = outboxStore.allEntries().single()
+        assertEquals(OutboxOperationType.PROFILE_UPDATE, entry.operationType)
+        assertEquals("""{"streetAddress":"Jl. Baru No. 99","city":"Jakarta"}""", entry.payloadJson)
+        assertEquals(2, syncScheduler.scheduleCount)
     }
 }

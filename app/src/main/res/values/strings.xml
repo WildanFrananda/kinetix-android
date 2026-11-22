@@ -4,6 +4,14 @@
     <string name="config_error_title">Configuration Required</string>
     <string name="config_error_subtitle">Kinetix cannot start because required endpoint settings are invalid:</string>
     <string name="config_error_hint">Provide valid KINETIX_HTTP_BASE and KINETIX_WS_BASE values via Gradle properties or environment variables.</string>
+    <string name="config_error_reason_bullet">• %1$s</string>
+    <string name="config_error_reason_missing">%1$s is missing</string>
+    <string name="config_error_reason_invalid_uri">%1$s is not a valid URI</string>
+    <string name="config_error_reason_scheme">%1$s must use %2$s://</string>
+    <string name="config_error_reason_missing_host">%1$s must include a host</string>
+    <string name="config_error_reason_has_path">%1$s must not contain a path</string>
+    <string name="config_error_reason_has_query_or_fragment">%1$s must not contain query or fragment parameters</string>
+    <string name="config_error_reason_generic">Invalid endpoint configuration</string>
 
     <string name="nav_home">Home</string>
     <string name="nav_search">Search</string>
@@ -84,6 +92,7 @@
     <string name="profile_account_format">Account #%1$d • Principal: %2$s</string>
     <string name="profile_geocoded_format">Road coordinates: %1$.4f, %2$.4f</string>
     <string name="profile_saved_banner">Delivery profile updated.</string>
+    <string name="profile_queued_offline_banner">Saved on this device, not sent yet.</string>
     <string name="profile_field_full_name">Recipient Full Name</string>
     <string name="profile_field_phone">Phone Number</string>
     <string name="profile_field_street">Street Address</string>
@@ -108,8 +117,10 @@
     <string name="search_button">Go</string>
     <string name="search_sort_relevance">Relevance</string>
     <string name="search_sort_price_asc">Price ↑</string>
-    <string name="search_sort_price_desc">Price ↓</string>
     <string name="search_sort_newest">Newest</string>
+    <string name="error_search_malformed_query">The search query or filter is not valid.</string>
+    <string name="error_search_index_unavailable">Search is temporarily unavailable right now. Please try again shortly.</string>
+    <string name="error_search_corrupt_record">Some search results could not be read.</string>
     <string name="search_idle_prompt">Enter a search term or tap Go to browse indexed products.</string>
     <string name="search_loading">Searching…</string>
     <string name="search_stale_index_banner">Search index is refreshing; very recent catalog changes may take a moment to appear.</string>

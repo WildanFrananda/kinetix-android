@@ -103,7 +103,6 @@ fun SearchScreen(
         val sortOptions = listOf(
             null to stringResource(R.string.search_sort_relevance),
             "price_asc" to stringResource(R.string.search_sort_price_asc),
-            "price_desc" to stringResource(R.string.search_sort_price_desc),
             "newest" to stringResource(R.string.search_sort_newest),
         )
 

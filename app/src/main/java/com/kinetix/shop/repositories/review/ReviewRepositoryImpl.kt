@@ -77,7 +77,7 @@ class ReviewRepositoryImpl @Inject constructor(
             rating = dto.rating,
             comment = dto.comment,
             createdAt = dto.createdAt,
-            merchantPrincipalId = PrincipalId(dto.merchantPrincipalId),
+            merchantPrincipalId = dto.merchantPrincipalId?.let { PrincipalId(it) },
         )
     }
 }

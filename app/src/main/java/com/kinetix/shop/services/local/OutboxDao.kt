@@ -17,6 +17,11 @@ interface OutboxDao {
         dedupeKey: String,
     ): OutboxEntryEntity?
 
+    @Query("SELECT * FROM outbox_entries WHERE entryId = :entryId LIMIT 1")
+    suspend fun findById(
+        entryId: String,
+    ): OutboxEntryEntity?
+
     @Query(
         "SELECT * FROM outbox_entries " +
             "WHERE status = :pendingStatus AND nextAttemptAtEpochSeconds <= :nowEpochSeconds " +
@@ -26,6 +31,16 @@ interface OutboxDao {
         pendingStatus: String,
         nowEpochSeconds: Long,
     ): List<OutboxEntryEntity>
+
+    @Query(
+        "UPDATE outbox_entries " +
+            "SET status = :pendingStatus " +
+            "WHERE status = :inFlightStatus"
+    )
+    suspend fun resetInFlightToPending(
+        inFlightStatus: String,
+        pendingStatus: String,
+    )
 
     @Query(
         "UPDATE outbox_entries " +

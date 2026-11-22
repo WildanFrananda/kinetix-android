@@ -39,27 +39,27 @@ class DefaultPushMessageHandler @Inject constructor(
     override fun onDataMessageReceived(
         data: Map<String, String>,
     ) {
-        val messageType = data[KEY_TYPE].orEmpty()
-        if (messageType == TYPE_DEVICE_VERIFICATION) {
-            val challengeId = data[KEY_CHALLENGE_ID].orEmpty().trim()
-            val challengeToken = data[KEY_CHALLENGE_TOKEN].orEmpty().trim()
-            if (challengeId.isNotEmpty() && challengeToken.isNotEmpty()) {
+        val messageKind = data[KEY_KIND].orEmpty().ifEmpty { data[KEY_TYPE].orEmpty() }
+        if (messageKind == KIND_DEVICE_VERIFICATION) {
+            val nonce = data[KEY_NONCE].orEmpty().trim()
+            val expiresAt = data[KEY_EXPIRES_AT].orEmpty().trim()
+            if (nonce.isNotEmpty() && expiresAt.isNotEmpty()) {
                 mutableVerificationChallenge.value = DeviceVerificationChallenge(
-                    challengeId = challengeId,
-                    challengeToken = challengeToken,
+                    nonce = nonce,
+                    expiresAt = expiresAt,
                 )
                 crashReporter.recordBreadcrumb(
                     category = "fcm",
-                    message = "Received DEVICE_VERIFICATION challenge $challengeId",
+                    message = "Received DEVICE_VERIFICATION challenge expires_at=$expiresAt",
                 )
             }
             return
         }
 
-        if (messageType.isNotEmpty()) {
+        if (messageKind.isNotEmpty()) {
             analyticsTracker.logEvent(
                 name = "push_message_received",
-                params = mapOf(KEY_TYPE to messageType),
+                params = mapOf(KEY_KIND to messageKind),
             )
         }
     }
@@ -69,9 +69,10 @@ class DefaultPushMessageHandler @Inject constructor(
     }
 
     companion object {
+        const val KEY_KIND = "kind"
         const val KEY_TYPE = "type"
-        const val TYPE_DEVICE_VERIFICATION = "DEVICE_VERIFICATION"
-        const val KEY_CHALLENGE_ID = "challengeId"
-        const val KEY_CHALLENGE_TOKEN = "challengeToken"
+        const val KIND_DEVICE_VERIFICATION = "DEVICE_VERIFICATION"
+        const val KEY_NONCE = "nonce"
+        const val KEY_EXPIRES_AT = "expires_at"
     }
 }

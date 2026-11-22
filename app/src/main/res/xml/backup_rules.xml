@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <exclude domain="file" path="kinetix_session.enc" />
-    <exclude domain="database" path="kinetix_shop.db" />
+    <exclude domain="database" path="kinetix_cache.db" />
+    <exclude domain="database" path="kinetix_ledger.db" />
     <exclude domain="sharedpref" path="kinetix_fcm.xml" />
 </full-backup-content>

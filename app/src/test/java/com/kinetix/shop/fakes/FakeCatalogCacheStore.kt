@@ -3,6 +3,8 @@ package com.kinetix.shop.fakes
 import com.kinetix.shop.models.catalog.Category
 import com.kinetix.shop.models.catalog.ProductDetail
 import com.kinetix.shop.models.catalog.ProductSummary
+import com.kinetix.shop.models.catalog.StockStatus
+import com.kinetix.shop.models.common.DataOrigin
 import com.kinetix.shop.models.ids.CategorySlug
 import com.kinetix.shop.models.ids.ProductSku
 import com.kinetix.shop.services.local.CatalogCacheStore
@@ -16,7 +18,14 @@ class FakeCatalogCacheStore : CatalogCacheStore {
         categories: List<Category>,
     ) {
         this.categories.clear()
-        this.categories.addAll(categories)
+        this.categories.addAll(
+            categories.map { category ->
+                category.copy(
+                    dataOrigin = DataOrigin.CACHE,
+                    cachedAtEpochSeconds = category.cachedAtEpochSeconds ?: 1_700_000_000L,
+                )
+            }
+        )
     }
 
     override suspend fun getCategories(): List<Category> {
@@ -27,7 +36,12 @@ class FakeCatalogCacheStore : CatalogCacheStore {
         products: List<ProductSummary>,
     ) {
         for (product in products) {
-            summariesBySku[product.sku.value] = product
+            summariesBySku[product.sku.value] = product.copy(
+                availableStock = null,
+                stockStatus = StockStatus.UNKNOWN,
+                dataOrigin = DataOrigin.CACHE,
+                cachedAtEpochSeconds = product.cachedAtEpochSeconds ?: 1_700_000_000L,
+            )
         }
     }
 
@@ -47,7 +61,16 @@ class FakeCatalogCacheStore : CatalogCacheStore {
     override suspend fun saveProductDetail(
         detail: ProductDetail,
     ) {
-        detailsBySku[detail.sku.value] = detail
+        detailsBySku[detail.sku.value] = detail.copy(
+            warehouseStock = detail.warehouseStock.copy(
+                binLocation = null,
+                availableQuantity = null,
+                reservedQuantity = null,
+                status = StockStatus.UNKNOWN,
+            ),
+            dataOrigin = DataOrigin.CACHE,
+            cachedAtEpochSeconds = detail.cachedAtEpochSeconds ?: 1_700_000_000L,
+        )
     }
 
     override suspend fun getProductDetail(

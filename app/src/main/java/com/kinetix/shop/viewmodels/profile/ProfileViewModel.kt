@@ -7,6 +7,8 @@ import com.kinetix.shop.core.failure.ClientValidationReason
 import com.kinetix.shop.core.failure.NotFoundFailure
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
+import com.kinetix.shop.models.profile.ProfileUpdateConfirmed
+import com.kinetix.shop.models.profile.ProfileUpdateQueued
 import com.kinetix.shop.models.profile.UpdateDeliveryProfileInput
 import com.kinetix.shop.repositories.profile.ProfileRepository
 import com.kinetix.shop.state.profile.ProfileErrorUiState
@@ -33,7 +35,10 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = profileRepository.getProfile()) {
                 is Ok -> {
-                    mutableState.value = ProfileLoadedUiState(profile = result.value)
+                    mutableState.value = ProfileLoadedUiState(
+                        profile = result.value,
+                        queuedOfflineBanner = !result.value.isConfirmed,
+                    )
                 }
                 is Err -> {
                     if (result.failure is NotFoundFailure) {
@@ -106,10 +111,22 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = profileRepository.updateProfile(input)) {
                 is Ok -> {
-                    mutableState.value = ProfileLoadedUiState(
-                        profile = result.value,
-                        savedBanner = true,
-                    )
+                    when (val outcome = result.value) {
+                        is ProfileUpdateConfirmed -> {
+                            mutableState.value = ProfileLoadedUiState(
+                                profile = outcome.profile,
+                                savedBanner = true,
+                                queuedOfflineBanner = false,
+                            )
+                        }
+                        is ProfileUpdateQueued -> {
+                            mutableState.value = ProfileLoadedUiState(
+                                profile = outcome.profile,
+                                savedBanner = false,
+                                queuedOfflineBanner = true,
+                            )
+                        }
+                    }
                 }
                 is Err -> {
                     mutableState.value = ProfileLoadedUiState(

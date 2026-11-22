@@ -4,13 +4,14 @@ import com.kinetix.shop.fakes.FakeAnalyticsTracker
 import com.kinetix.shop.fakes.FakeCrashReporter
 import com.kinetix.shop.fakes.FakeFcmTokenStore
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DefaultPushMessageHandlerTest {
     @Test
-    fun storesRefreshedTokenAndCapturesDeviceVerificationChallenge() {
+    fun storesRefreshedTokenAndCapturesDeviceVerificationChallengeWithoutLoggingNonce() {
         val tokenStore = FakeFcmTokenStore()
         val crashReporter = FakeCrashReporter()
         val analyticsTracker = FakeAnalyticsTracker()
@@ -26,15 +27,16 @@ class DefaultPushMessageHandlerTest {
 
         handler.onDataMessageReceived(
             mapOf(
-                "type" to "DEVICE_VERIFICATION",
-                "challengeId" to "chal-99",
-                "challengeToken" to "tok-secret-99",
+                "kind" to "DEVICE_VERIFICATION",
+                "nonce" to "nonce-secret-99",
+                "expires_at" to "2026-11-22T12:00:00Z",
             )
         )
         val challenge = handler.latestVerificationChallenge.value
         assertNotNull(challenge)
-        assertEquals("chal-99", challenge?.challengeId)
-        assertEquals("tok-secret-99", challenge?.challengeToken)
+        assertEquals("nonce-secret-99", challenge?.nonce)
+        assertEquals("2026-11-22T12:00:00Z", challenge?.expiresAt)
+        assertFalse(crashReporter.breadcrumbs.any { it.second.contains("nonce-secret-99") })
 
         handler.clearVerificationChallenge()
         assertNull(handler.latestVerificationChallenge.value)

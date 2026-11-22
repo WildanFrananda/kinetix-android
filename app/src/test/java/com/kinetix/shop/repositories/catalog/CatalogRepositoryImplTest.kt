@@ -10,11 +10,14 @@ import com.kinetix.shop.dto.catalog.WarehouseStockDto
 import com.kinetix.shop.fakes.FakeCatalogApiService
 import com.kinetix.shop.fakes.FakeCatalogCacheStore
 import com.kinetix.shop.models.catalog.StockStatus
+import com.kinetix.shop.models.common.DataOrigin
 import com.kinetix.shop.models.ids.ProductSku
 import java.io.IOException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import retrofit2.Response
@@ -28,10 +31,14 @@ class CatalogRepositoryImplTest {
     private val safeApiCaller = SafeApiCaller(HttpFailureMapper(ApiErrorParser(json)))
 
     @Test
-    fun getProductDetailMapsPriceAndDegradedWarehouseStockStatus() = runTest {
+    fun getProductDetailMapsPriceAndMarksCachedFallbackWithUnknownStockAndCacheOrigin() = runTest {
         val cacheStore = FakeCatalogCacheStore()
+        var isOffline = false
         val apiService = FakeCatalogApiService().apply {
             getProductHandler = { sku ->
+                if (isOffline) {
+                    throw IOException("Offline")
+                }
                 Response.success(
                     ProductDetailResponseDto(
                         id = 101L,
@@ -47,10 +54,10 @@ class CatalogRepositoryImplTest {
                         weightGrams = 950,
                         warehouseStock = WarehouseStockDto(
                             sku = sku,
-                            binLocation = null,
-                            availableQuantity = null,
-                            reservedQuantity = null,
-                            stockStatus = "unknown",
+                            binLocation = "A1",
+                            availableQuantity = 12,
+                            reservedQuantity = 2,
+                            stockStatus = "in_stock",
                         ),
                     )
                 )
@@ -62,16 +69,25 @@ class CatalogRepositoryImplTest {
             catalogCacheStore = cacheStore,
         )
 
-        val result = repository.getProductDetail(ProductSku("SKU-KB-75"))
-        assertTrue(result is Ok)
-        val detail = (result as Ok).value
-        assertEquals("149.99", detail.price)
-        assertEquals(StockStatus.UNKNOWN, detail.warehouseStock.status)
-        assertEquals("Mechanical Keyboard", cacheStore.getProductDetail(ProductSku("SKU-KB-75"))?.title)
+        val liveResult = repository.getProductDetail(ProductSku("SKU-KB-75"))
+        assertTrue(liveResult is Ok)
+        val liveDetail = (liveResult as Ok).value
+        assertEquals("149.99", liveDetail.price)
+        assertEquals(StockStatus.IN_STOCK, liveDetail.warehouseStock.status)
+        assertEquals(DataOrigin.LIVE, liveDetail.dataOrigin)
+
+        isOffline = true
+        val cachedResult = repository.getProductDetail(ProductSku("SKU-KB-75"))
+        assertTrue(cachedResult is Ok)
+        val cachedDetail = (cachedResult as Ok).value
+        assertEquals(DataOrigin.CACHE, cachedDetail.dataOrigin)
+        assertNotNull(cachedDetail.cachedAtEpochSeconds)
+        assertEquals(StockStatus.UNKNOWN, cachedDetail.warehouseStock.status)
+        assertNull(cachedDetail.warehouseStock.availableQuantity)
     }
 
     @Test
-    fun listCategoriesFallsBackToLocalCacheWhenOffline() = runTest {
+    fun listCategoriesFallsBackToLocalCacheWhenOfflineWithCacheOrigin() = runTest {
         val cacheStore = FakeCatalogCacheStore()
         var isOffline = false
         val apiService = FakeCatalogApiService().apply {
@@ -98,11 +114,14 @@ class CatalogRepositoryImplTest {
 
         val onlineResult = repository.listCategories()
         assertTrue(onlineResult is Ok)
+        assertEquals(DataOrigin.LIVE, (onlineResult as Ok).value.first().dataOrigin)
 
         isOffline = true
         val offlineResult = repository.listCategories()
         assertTrue(offlineResult is Ok)
-        assertEquals(1, (offlineResult as Ok).value.size)
-        assertEquals("Peripherals", offlineResult.value.first().name)
+        val cachedCategory = (offlineResult as Ok).value.single()
+        assertEquals("Peripherals", cachedCategory.name)
+        assertEquals(DataOrigin.CACHE, cachedCategory.dataOrigin)
+        assertNotNull(cachedCategory.cachedAtEpochSeconds)
     }
 }

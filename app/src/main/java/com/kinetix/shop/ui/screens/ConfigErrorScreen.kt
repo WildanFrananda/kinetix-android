@@ -60,8 +60,30 @@ fun ConfigErrorScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     reasons.forEach { reason ->
+                        val keyName = reason.substringBefore(" ")
+                        val resolvedReason = when {
+                            reason.endsWith(" is missing") ->
+                                stringResource(R.string.config_error_reason_missing, keyName)
+                            reason.endsWith(" is not a valid URI") ->
+                                stringResource(R.string.config_error_reason_invalid_uri, keyName)
+                            reason.endsWith(" must use https://") ->
+                                stringResource(R.string.config_error_reason_scheme, keyName, "https")
+                            reason.endsWith(" must use wss://") ->
+                                stringResource(R.string.config_error_reason_scheme, keyName, "wss")
+                            reason.endsWith(" must include a host") ->
+                                stringResource(R.string.config_error_reason_missing_host, keyName)
+                            reason.endsWith(" must not contain a path") ->
+                                stringResource(R.string.config_error_reason_has_path, keyName)
+                            reason.endsWith(" must not contain query or fragment parameters") ->
+                                stringResource(R.string.config_error_reason_has_query_or_fragment, keyName)
+                            else ->
+                                stringResource(R.string.config_error_reason_generic)
+                        }
                         Text(
-                            text = "• $reason",
+                            text = stringResource(
+                                R.string.config_error_reason_bullet,
+                                resolvedReason,
+                            ),
                             style = MaterialTheme.typography.labelMedium,
                             color = KinetixPalette.WarningAmber,
                         )

@@ -15,6 +15,7 @@ import com.kinetix.shop.models.catalog.ProductPage
 import com.kinetix.shop.models.catalog.ProductSummary
 import com.kinetix.shop.models.catalog.StockStatus
 import com.kinetix.shop.models.catalog.WarehouseStockInfo
+import com.kinetix.shop.models.common.DataOrigin
 import com.kinetix.shop.models.ids.CategorySlug
 import com.kinetix.shop.models.ids.PrincipalId
 import com.kinetix.shop.models.ids.ProductSku
@@ -22,6 +23,7 @@ import com.kinetix.shop.services.local.CatalogCacheStore
 import com.kinetix.shop.services.remote.CatalogApiService
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 @Singleton
 class CatalogRepositoryImpl @Inject constructor(
@@ -41,6 +43,7 @@ class CatalogRepositoryImpl @Inject constructor(
                             id = dto.id,
                             name = dto.name,
                             slug = CategorySlug(dto.slug),
+                            dataOrigin = DataOrigin.LIVE,
                         )
                     }
                 )
@@ -48,14 +51,18 @@ class CatalogRepositoryImpl @Inject constructor(
         )
         return when (networkResult) {
             is Ok -> {
-                catalogCacheStore.saveCategories(networkResult.value)
+                safeCacheAction {
+                    catalogCacheStore.saveCategories(networkResult.value)
+                }
                 networkResult
             }
 
             is Err -> {
                 if (canFallbackToCache(networkResult.failure)) {
-                    val cached = catalogCacheStore.getCategories()
-                    if (cached.isNotEmpty()) {
+                    val cached = safeCacheRead {
+                        catalogCacheStore.getCategories()
+                    }
+                    if (!cached.isNullOrEmpty()) {
                         return Ok(cached)
                     }
                 }
@@ -101,6 +108,7 @@ class CatalogRepositoryImpl @Inject constructor(
                             weightGrams = item.weightGrams,
                             availableStock = item.availableStock,
                             stockStatus = parseStockStatus(item.stockStatus),
+                            dataOrigin = DataOrigin.LIVE,
                         )
                     )
                 }
@@ -110,30 +118,38 @@ class CatalogRepositoryImpl @Inject constructor(
                         page = dto.page,
                         pageSize = dto.pageSize,
                         items = items,
+                        dataOrigin = DataOrigin.LIVE,
                     )
                 )
             },
         )
         return when (networkResult) {
             is Ok -> {
-                catalogCacheStore.saveProductSummaries(networkResult.value.items)
+                safeCacheAction {
+                    catalogCacheStore.saveProductSummaries(networkResult.value.items)
+                }
                 networkResult
             }
 
             is Err -> {
                 if (page == 1 && canFallbackToCache(networkResult.failure)) {
-                    val cached = catalogCacheStore.getProductSummaries(
-                        categorySlug = categorySlug,
-                        query = query,
-                        limit = pageSize,
-                    )
-                    if (cached.isNotEmpty()) {
+                    val cached = safeCacheRead {
+                        catalogCacheStore.getProductSummaries(
+                            categorySlug = categorySlug,
+                            query = query,
+                            limit = pageSize,
+                        )
+                    }
+                    if (!cached.isNullOrEmpty()) {
+                        val oldestTimestamp = cached.mapNotNull { it.cachedAtEpochSeconds }.minOrNull()
                         return Ok(
                             ProductPage(
                                 totalCount = cached.size,
                                 page = 1,
                                 pageSize = pageSize,
                                 items = cached,
+                                dataOrigin = DataOrigin.CACHE,
+                                cachedAtEpochSeconds = oldestTimestamp,
                             )
                         )
                     }
@@ -178,25 +194,53 @@ class CatalogRepositoryImpl @Inject constructor(
                             reservedQuantity = dto.warehouseStock.reservedQuantity,
                             status = parseStockStatus(dto.warehouseStock.stockStatus),
                         ),
+                        dataOrigin = DataOrigin.LIVE,
                     )
                 )
             },
         )
         return when (networkResult) {
             is Ok -> {
-                catalogCacheStore.saveProductDetail(networkResult.value)
+                safeCacheAction {
+                    catalogCacheStore.saveProductDetail(networkResult.value)
+                }
                 networkResult
             }
 
             is Err -> {
                 if (canFallbackToCache(networkResult.failure)) {
-                    val cached = catalogCacheStore.getProductDetail(sku)
+                    val cached = safeCacheRead {
+                        catalogCacheStore.getProductDetail(sku)
+                    }
                     if (cached != null) {
                         return Ok(cached)
                     }
                 }
                 networkResult
             }
+        }
+    }
+
+    private suspend inline fun safeCacheAction(
+        action: () -> Unit,
+    ) {
+        try {
+            action()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+        }
+    }
+
+    private suspend inline fun <T> safeCacheRead(
+        read: () -> T,
+    ): T? {
+        return try {
+            read()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -216,7 +260,7 @@ class CatalogRepositoryImpl @Inject constructor(
         raw: String,
     ): StockStatus {
         return when (raw.lowercase()) {
-            "in_stock", "available" -> StockStatus.IN_STOCK
+            "in_stock" -> StockStatus.IN_STOCK
             "out_of_stock" -> StockStatus.OUT_OF_STOCK
             else -> StockStatus.UNKNOWN
         }

@@ -1,5 +1,6 @@
 package com.kinetix.shop.core.network
 
+import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.failure.ConflictFailure
 import com.kinetix.shop.core.failure.Failure
 import com.kinetix.shop.core.failure.ForbiddenFailure
@@ -22,11 +23,20 @@ class HttpFailureMapper @Inject constructor(
         rawErrorBody: String?,
         retryAfterHeaderSeconds: Int?,
         requestId: String? = null,
+        isWrite: Boolean = false,
     ): Failure {
         val parsed = errorParser.parse(rawErrorBody)
-        val code = parsed?.error ?: "HTTP_$statusCode"
+        val isServiceJson = errorParser.isServiceJsonError(parsed)
+        val machineCode = errorParser.extractErrorCode(parsed)
+        val code = machineCode ?: if (!isServiceJson && statusCode in 502..504) {
+            "GATEWAY_$statusCode"
+        } else {
+            "HTTP_$statusCode"
+        }
         val detail = errorParser.extractMessage(parsed) ?: "HTTP $statusCode"
-        val resolvedRequestId = parsed?.traceId?.takeIf { it.isNotBlank() } ?: requestId
+        val resolvedRequestId = parsed?.traceId?.takeIf { it.isNotBlank() }
+            ?: parsed?.requestId?.takeIf { it.isNotBlank() }
+            ?: requestId
 
         return when (statusCode) {
             400, 422 -> ValidationFailure(
@@ -61,10 +71,12 @@ class HttpFailureMapper @Inject constructor(
             )
 
             429 -> {
-                val delaySeconds = parsed?.retryAfterSeconds ?: retryAfterHeaderSeconds
+                val delaySeconds = parsed?.retryAfterSeconds
+                    ?: retryAfterHeaderSeconds
+                    ?: NetworkPolicy.DEFAULT_RETRY_AFTER_SECONDS
                 if (code == "SIGN_IN_DELAYED") {
                     SignInDelayedFailure(
-                        retryAfterSeconds = delaySeconds ?: 1,
+                        retryAfterSeconds = delaySeconds,
                         requestId = resolvedRequestId,
                     )
                 } else {
@@ -75,11 +87,21 @@ class HttpFailureMapper @Inject constructor(
                 }
             }
 
-            502, 503, 504 -> UnavailableFailure(
-                code = code,
-                retryAfterSeconds = retryAfterHeaderSeconds,
-                requestId = resolvedRequestId,
-            )
+            502, 503, 504 -> {
+                if (!isServiceJson && isWrite) {
+                    UnknownOutcomeFailure(
+                        code = code,
+                        detail = detail,
+                        requestId = resolvedRequestId,
+                    )
+                } else {
+                    UnavailableFailure(
+                        code = code,
+                        retryAfterSeconds = parsed?.retryAfterSeconds ?: retryAfterHeaderSeconds,
+                        requestId = resolvedRequestId,
+                    )
+                }
+            }
 
             else -> UnknownOutcomeFailure(
                 code = code,

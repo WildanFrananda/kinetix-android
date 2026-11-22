@@ -1,6 +1,7 @@
 package com.kinetix.shop.services.telemetry
 
 import android.content.Context
+import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.kinetix.shop.core.network.RequestCorrelationInterceptor
@@ -33,49 +34,75 @@ class FirebaseCrashReporter @Inject constructor(
     override fun latestRequestId(): String? {
         return lastRecordedRequestId
     }
+
     override fun setUserPrincipal(
         principalId: PrincipalId?,
     ) {
-        withCrashlytics { crashlytics ->
-            crashlytics.setUserId(principalId?.value.orEmpty())
-        }
+        withCrashlytics(
+            onFallback = {},
+            block = { crashlytics ->
+                crashlytics.setUserId("")
+            },
+        )
     }
 
     override fun setCustomKey(
         key: String,
         value: String,
     ) {
-        withCrashlytics { crashlytics ->
-            crashlytics.setCustomKey(key, value)
-        }
+        withCrashlytics(
+            onFallback = {
+                Log.d(LOG_TAG, "key $key=$value")
+            },
+            block = { crashlytics ->
+                crashlytics.setCustomKey(key, value)
+            },
+        )
     }
 
     override fun recordBreadcrumb(
         category: String,
         message: String,
     ) {
-        withCrashlytics { crashlytics ->
-            crashlytics.log("[$category] $message")
-        }
+        withCrashlytics(
+            onFallback = {
+                Log.i(LOG_TAG, "[$category] $message")
+            },
+            block = { crashlytics ->
+                crashlytics.log("[$category] $message")
+            },
+        )
     }
 
     override fun recordNonFatal(
         throwable: Throwable,
         contextMap: Map<String, String>,
     ) {
-        withCrashlytics { crashlytics ->
-            contextMap.forEach { (key, value) ->
-                crashlytics.setCustomKey(key, value)
-            }
-            crashlytics.recordException(throwable)
-        }
+        withCrashlytics(
+            onFallback = {
+                Log.w(LOG_TAG, "Non-fatal exception context=$contextMap", throwable)
+            },
+            block = { crashlytics ->
+                contextMap.forEach { (key, value) ->
+                    crashlytics.setCustomKey(key, value)
+                }
+                crashlytics.recordException(throwable)
+            },
+        )
     }
 
     private inline fun withCrashlytics(
+        onFallback: () -> Unit,
         block: (FirebaseCrashlytics) -> Unit,
     ) {
         if (FirebaseApp.getApps(context).isNotEmpty()) {
             block(FirebaseCrashlytics.getInstance())
+        } else {
+            onFallback()
         }
+    }
+
+    companion object {
+        private const val LOG_TAG = "KinetixTelemetry"
     }
 }
