@@ -4,10 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import com.kinetix.shop.core.config.AppConfigCheckResult
 import com.kinetix.shop.core.config.AppConfigInvalid
 import com.kinetix.shop.core.config.AppConfigValid
 import com.kinetix.shop.repositories.auth.SessionRepository
+import com.kinetix.shop.services.config.FeatureFlagProvider
 import com.kinetix.shop.ui.screens.AppRootScreen
 import com.kinetix.shop.ui.screens.ConfigErrorScreen
 import com.kinetix.shop.ui.theme.KinetixTheme
@@ -22,6 +24,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var sessionRepository: dagger.Lazy<SessionRepository>
 
+    @Inject
+    lateinit var featureFlagProvider: dagger.Lazy<FeatureFlagProvider>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -34,6 +39,9 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     is AppConfigValid -> {
+                        LaunchedEffect(Unit) {
+                            featureFlagProvider.get().refreshFlags()
+                        }
                         AppRootScreen(
                             sessionRepository = sessionRepository.get(),
                         )

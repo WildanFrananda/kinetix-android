@@ -6,5 +6,6 @@ import com.kinetix.shop.models.profile.DeliveryProfile
 data class ProfileLoadedUiState(
     val profile: DeliveryProfile?,
     val savedBanner: Boolean = false,
+    val queuedOfflineBanner: Boolean = false,
     val errorFailure: Failure? = null,
 ) : ProfileUiState

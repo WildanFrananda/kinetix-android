@@ -1,5 +1,6 @@
 package com.kinetix.shop.models.profile
 
+import com.kinetix.shop.models.common.DataOrigin
 import com.kinetix.shop.models.ids.AccountId
 
 data class DeliveryProfile(
@@ -14,4 +15,7 @@ data class DeliveryProfile(
     val latitude: Double?,
     val longitude: Double?,
     val geocodedAt: String?,
+    val isConfirmed: Boolean = true,
+    val dataOrigin: DataOrigin = DataOrigin.LIVE,
+    val cachedAtEpochSeconds: Long? = null,
 )

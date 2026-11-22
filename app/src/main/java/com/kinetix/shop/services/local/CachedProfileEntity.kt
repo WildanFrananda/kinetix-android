@@ -18,4 +18,12 @@ data class CachedProfileEntity(
     val longitude: Double?,
     val geocodedAt: String?,
     val cachedAtEpochSeconds: Long,
+    val isConfirmed: Boolean = true,
+    val confirmedFullName: String? = null,
+    val confirmedPhoneNumber: String? = null,
+    val confirmedStreetAddress: String? = null,
+    val confirmedCity: String? = null,
+    val confirmedPostalCode: String? = null,
+    val confirmedAvatarUrl: String? = null,
+    val hasConfirmedSnapshot: Boolean = false,
 )

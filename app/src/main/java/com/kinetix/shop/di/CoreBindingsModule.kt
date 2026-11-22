@@ -25,11 +25,9 @@ import com.kinetix.shop.services.config.FeatureFlagProvider
 import com.kinetix.shop.services.config.FirebaseFeatureFlagProvider
 import com.kinetix.shop.services.local.CatalogCacheStore
 import com.kinetix.shop.services.local.OutboxStore
-import com.kinetix.shop.services.local.PendingTransactionStore
 import com.kinetix.shop.services.local.ProfileCacheStore
 import com.kinetix.shop.services.local.RoomCatalogCacheStore
 import com.kinetix.shop.services.local.RoomOutboxStore
-import com.kinetix.shop.services.local.RoomPendingTransactionStore
 import com.kinetix.shop.services.local.RoomProfileCacheStore
 import com.kinetix.shop.services.notification.DefaultPushMessageHandler
 import com.kinetix.shop.services.notification.FcmTokenStore
@@ -40,6 +38,7 @@ import com.kinetix.shop.services.outbox.WorkManagerOutboxSyncScheduler
 import com.kinetix.shop.services.session.OkHttpRefreshWireExecutor
 import com.kinetix.shop.services.session.RefreshWireExecutor
 import com.kinetix.shop.services.session.RetrofitTokenRefreshTransport
+import com.kinetix.shop.services.session.SessionExecutionGateway
 import com.kinetix.shop.services.session.SessionRenewer
 import com.kinetix.shop.services.session.SingleFlightSessionRenewer
 import com.kinetix.shop.services.session.TokenRefreshTransport
@@ -120,12 +119,6 @@ abstract class CoreBindingsModule {
 
     @Binds
     @Singleton
-    abstract fun bindPendingTransactionStore(
-        impl: RoomPendingTransactionStore,
-    ): PendingTransactionStore
-
-    @Binds
-    @Singleton
     abstract fun bindOutboxStore(
         impl: RoomOutboxStore,
     ): OutboxStore
@@ -165,6 +158,12 @@ abstract class CoreBindingsModule {
     abstract fun bindSessionRepository(
         impl: SessionRepositoryImpl,
     ): SessionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSessionExecutionGateway(
+        impl: SessionRepositoryImpl,
+    ): SessionExecutionGateway
 
     @Binds
     @Singleton

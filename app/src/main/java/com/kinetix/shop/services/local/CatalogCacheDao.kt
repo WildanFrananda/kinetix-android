@@ -30,6 +30,16 @@ interface CatalogCacheDao {
         sku: String,
     ): CachedProductEntity?
 
+    @Query("DELETE FROM cached_categories WHERE cachedAtEpochSeconds < :minEpochSeconds")
+    suspend fun deleteCategoriesOlderThan(
+        minEpochSeconds: Long,
+    )
+
+    @Query("DELETE FROM cached_products WHERE cachedAtEpochSeconds < :minEpochSeconds")
+    suspend fun deleteProductsOlderThan(
+        minEpochSeconds: Long,
+    )
+
     @Query(
         "SELECT * FROM cached_products " +
             "WHERE (:categorySlug IS NULL OR categorySlug = :categorySlug) " +

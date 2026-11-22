@@ -11,6 +11,7 @@ import com.kinetix.shop.dto.auth.CurrentSessionResponseDto
 import com.kinetix.shop.fakes.FakeClock
 import com.kinetix.shop.fakes.FakeCrashReporter
 import com.kinetix.shop.fakes.FakeIdentityApiService
+import com.kinetix.shop.fakes.FakeProfileCacheStore
 import com.kinetix.shop.fakes.FakeSessionRenewer
 import com.kinetix.shop.fakes.FakeTokenStore
 import com.kinetix.shop.models.auth.SessionRestoring
@@ -20,6 +21,7 @@ import com.kinetix.shop.models.auth.SessionUnreadable
 import com.kinetix.shop.models.auth.StoredSession
 import com.kinetix.shop.models.ids.AccountId
 import com.kinetix.shop.models.ids.PrincipalId
+import com.kinetix.shop.models.profile.DeliveryProfile
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -79,6 +81,7 @@ class SessionRepositoryImplTest {
             safeApiCaller = safeApiCaller,
             tokenStore = tokenStore,
             sessionRenewer = FakeSessionRenewer(),
+            profileCacheStore = FakeProfileCacheStore(),
             clock = clock,
             crashReporter = FakeCrashReporter(),
             applicationScope = appScope,
@@ -104,6 +107,7 @@ class SessionRepositoryImplTest {
             safeApiCaller = safeApiCaller,
             tokenStore = tokenStore,
             sessionRenewer = FakeSessionRenewer(),
+            profileCacheStore = FakeProfileCacheStore(),
             clock = FakeClock(),
             crashReporter = FakeCrashReporter(),
             applicationScope = appScope,
@@ -155,6 +159,7 @@ class SessionRepositoryImplTest {
             safeApiCaller = safeApiCaller,
             tokenStore = tokenStore,
             sessionRenewer = renewer,
+            profileCacheStore = FakeProfileCacheStore(),
             clock = clock,
             crashReporter = FakeCrashReporter(),
             applicationScope = appScope,
@@ -170,7 +175,7 @@ class SessionRepositoryImplTest {
     }
 
     @Test
-    fun restoreSessionClearsSessionOnlyOnSecondUnauthorized() = runTest {
+    fun restoreSessionClearsSessionAndCachedProfileOnlyOnSecondUnauthorized() = runTest {
         val appScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
         val clock = FakeClock(currentEpochSeconds = 1_700_000_000L)
         val initialSession = StoredSession(
@@ -186,6 +191,23 @@ class SessionRepositoryImplTest {
             refreshToken = "ref-2",
         )
         val tokenStore = FakeTokenStore(current = initialSession)
+        val profileCacheStore = FakeProfileCacheStore().apply {
+            saveProfile(
+                DeliveryProfile(
+                    id = 1L,
+                    accountId = AccountId(10L),
+                    fullName = "Budi",
+                    phoneNumber = "0812",
+                    streetAddress = "Jl. 1",
+                    city = "Jakarta",
+                    postalCode = "10110",
+                    avatarUrl = null,
+                    latitude = null,
+                    longitude = null,
+                    geocodedAt = null,
+                )
+            )
+        }
         val apiService = FakeIdentityApiService().apply {
             meHandler = {
                 Response.error(
@@ -200,6 +222,7 @@ class SessionRepositoryImplTest {
             safeApiCaller = safeApiCaller,
             tokenStore = tokenStore,
             sessionRenewer = FakeSessionRenewer(nextResult = Ok(renewedSession)),
+            profileCacheStore = profileCacheStore,
             clock = clock,
             crashReporter = FakeCrashReporter(),
             applicationScope = appScope,
@@ -211,6 +234,7 @@ class SessionRepositoryImplTest {
         assertNull((result as Ok).value)
         assertEquals(SessionSignedOut, repository.sessionState.value)
         assertEquals(1, tokenStore.clearCount)
+        assertNull(profileCacheStore.getProfile(AccountId(10L)))
         appScope.cancel()
     }
 
@@ -245,6 +269,7 @@ class SessionRepositoryImplTest {
             safeApiCaller = safeApiCaller,
             tokenStore = tokenStore,
             sessionRenewer = FakeSessionRenewer(),
+            profileCacheStore = FakeProfileCacheStore(),
             clock = clock,
             crashReporter = FakeCrashReporter(),
             applicationScope = appScope,
@@ -259,7 +284,7 @@ class SessionRepositoryImplTest {
     }
 
     @Test
-    fun signOutRenewsNearExpiryRetriesGateway401AndRecordsBreadcrumbWhenUnconfirmed() = runTest {
+    fun signOutRenewsNearExpiryRetriesGateway401ClearsProfileCacheAndRecordsBreadcrumbWhenUnconfirmed() = runTest {
         val appScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
         val clock = FakeClock(currentEpochSeconds = 1_700_000_850L)
         val initialSession = StoredSession(
@@ -276,6 +301,23 @@ class SessionRepositoryImplTest {
             expiresAtEpochSeconds = 1_700_001_800L,
         )
         val tokenStore = FakeTokenStore(current = initialSession)
+        val profileCacheStore = FakeProfileCacheStore().apply {
+            saveProfile(
+                DeliveryProfile(
+                    id = 1L,
+                    accountId = AccountId(10L),
+                    fullName = "Budi",
+                    phoneNumber = "0812",
+                    streetAddress = "Jl. 1",
+                    city = "Jakarta",
+                    postalCode = "10110",
+                    avatarUrl = null,
+                    latitude = null,
+                    longitude = null,
+                    geocodedAt = null,
+                )
+            )
+        }
         val crashReporter = FakeCrashReporter()
         var logoutCalls = 0
         val apiService = FakeIdentityApiService().apply {
@@ -301,6 +343,7 @@ class SessionRepositoryImplTest {
             safeApiCaller = safeApiCaller,
             tokenStore = tokenStore,
             sessionRenewer = renewer,
+            profileCacheStore = profileCacheStore,
             clock = clock,
             crashReporter = crashReporter,
             applicationScope = appScope,
@@ -313,6 +356,7 @@ class SessionRepositoryImplTest {
         assertEquals(2, logoutCalls)
         assertEquals(SessionSignedOut, repository.sessionState.value)
         assertNull(tokenStore.current)
+        assertNull(profileCacheStore.getProfile(AccountId(10L)))
         assertEquals(1, crashReporter.breadcrumbs.size)
         appScope.cancel()
     }
@@ -339,6 +383,7 @@ class SessionRepositoryImplTest {
             safeApiCaller = safeApiCaller,
             tokenStore = FakeTokenStore(current = initialSession),
             sessionRenewer = renewer,
+            profileCacheStore = FakeProfileCacheStore(),
             clock = clock,
             crashReporter = FakeCrashReporter(),
             applicationScope = appScope,

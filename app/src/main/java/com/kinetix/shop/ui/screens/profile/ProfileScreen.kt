@@ -165,6 +165,14 @@ fun ProfileScreen(
                     )
                 }
 
+                if (loadedState?.queuedOfflineBanner == true) {
+                    Text(
+                        text = stringResource(R.string.profile_queued_offline_banner),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = KinetixPalette.WarningAmber,
+                    )
+                }
+
                 val errorFailure = loadedState?.errorFailure
                 if (errorFailure != null) {
                     Text(

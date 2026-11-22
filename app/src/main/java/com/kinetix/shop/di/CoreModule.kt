@@ -13,9 +13,9 @@ import com.kinetix.shop.core.config.AppConfigValidator
 import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.network.RequestCorrelationInterceptor
 import com.kinetix.shop.services.local.CatalogCacheDao
-import com.kinetix.shop.services.local.KinetixDatabase
+import com.kinetix.shop.services.local.KinetixCacheDatabase
+import com.kinetix.shop.services.local.KinetixLedgerDatabase
 import com.kinetix.shop.services.local.OutboxDao
-import com.kinetix.shop.services.local.PendingTransactionStateDao
 import com.kinetix.shop.services.local.ProfileCacheDao
 import com.kinetix.shop.services.remote.CatalogApiService
 import com.kinetix.shop.services.remote.IdentityApiService
@@ -181,20 +181,32 @@ object CoreModule {
 
     @Provides
     @Singleton
-    fun provideKinetixDatabase(
+    fun provideKinetixCacheDatabase(
         @ApplicationContext context: Context,
-    ): KinetixDatabase {
+    ): KinetixCacheDatabase {
         return Room.databaseBuilder(
             context,
-            KinetixDatabase::class.java,
-            "kinetix_shop.db",
+            KinetixCacheDatabase::class.java,
+            "kinetix_cache.db",
         ).fallbackToDestructiveMigration(dropAllTables = true).build()
     }
 
     @Provides
     @Singleton
+    fun provideKinetixLedgerDatabase(
+        @ApplicationContext context: Context,
+    ): KinetixLedgerDatabase {
+        return Room.databaseBuilder(
+            context,
+            KinetixLedgerDatabase::class.java,
+            "kinetix_ledger.db",
+        ).build()
+    }
+
+    @Provides
+    @Singleton
     fun provideCatalogCacheDao(
-        database: KinetixDatabase,
+        database: KinetixCacheDatabase,
     ): CatalogCacheDao {
         return database.catalogCacheDao()
     }
@@ -202,23 +214,15 @@ object CoreModule {
     @Provides
     @Singleton
     fun provideProfileCacheDao(
-        database: KinetixDatabase,
+        database: KinetixCacheDatabase,
     ): ProfileCacheDao {
         return database.profileCacheDao()
     }
 
     @Provides
     @Singleton
-    fun providePendingTransactionStateDao(
-        database: KinetixDatabase,
-    ): PendingTransactionStateDao {
-        return database.pendingTransactionStateDao()
-    }
-
-    @Provides
-    @Singleton
     fun provideOutboxDao(
-        database: KinetixDatabase,
+        database: KinetixLedgerDatabase,
     ): OutboxDao {
         return database.outboxDao()
     }

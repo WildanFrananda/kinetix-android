@@ -7,6 +7,7 @@ import com.kinetix.shop.core.failure.SignInDelayedFailure
 import com.kinetix.shop.core.failure.TimeoutFailure
 import com.kinetix.shop.core.failure.UnauthorizedFailure
 import com.kinetix.shop.core.failure.UnavailableFailure
+import com.kinetix.shop.core.failure.UnknownOutcomeFailure
 import com.kinetix.shop.core.failure.UnreadableAnswerFailure
 import com.kinetix.shop.core.network.SafeApiCaller
 import com.kinetix.shop.core.result.Err
@@ -19,11 +20,11 @@ import com.kinetix.shop.models.outbox.OutboxEntry
 import com.kinetix.shop.models.outbox.OutboxFlushOutcome
 import com.kinetix.shop.models.outbox.OutboxOperationType
 import com.kinetix.shop.models.profile.DeliveryProfile
-import com.kinetix.shop.repositories.auth.SessionRepository
 import com.kinetix.shop.services.config.FeatureFlagProvider
 import com.kinetix.shop.services.local.OutboxStore
 import com.kinetix.shop.services.local.ProfileCacheStore
 import com.kinetix.shop.services.remote.IdentityApiService
+import com.kinetix.shop.services.session.SessionExecutionGateway
 import com.kinetix.shop.services.telemetry.AnalyticsTracker
 import com.kinetix.shop.services.telemetry.CrashReporter
 import javax.inject.Inject
@@ -34,10 +35,11 @@ import kotlinx.serialization.json.jsonObject
 @Singleton
 class OutboxProcessor @Inject constructor(
     private val outboxStore: OutboxStore,
-    private val sessionRepository: SessionRepository,
+    private val sessionGateway: SessionExecutionGateway,
     private val identityApiService: IdentityApiService,
     private val safeApiCaller: SafeApiCaller,
     private val profileCacheStore: ProfileCacheStore,
+    private val outboxSyncScheduler: OutboxSyncScheduler,
     private val featureFlagProvider: FeatureFlagProvider,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
@@ -48,7 +50,13 @@ class OutboxProcessor @Inject constructor(
         if (!featureFlagProvider.isOutboxSyncEnabled()) {
             return OutboxFlushOutcome.COMPLETED
         }
-        val activeSession = sessionRepository.currentSession.value ?: return OutboxFlushOutcome.COMPLETED
+        outboxStore.recoverInFlightEntries()
+
+        val activeSession = sessionGateway.currentSession.value ?: when (val restored = sessionGateway.restoreSession()) {
+            is Ok -> restored.value ?: return OutboxFlushOutcome.COMPLETED
+            is Err -> return OutboxFlushOutcome.RETRY_LATER
+        }
+
         val now = clock.nowEpochSeconds()
         val entries = outboxStore.listReadyEntries(now)
         var shouldRetry = false
@@ -57,10 +65,20 @@ class OutboxProcessor @Inject constructor(
             if (entry.principalId != activeSession.principalId) {
                 continue
             }
-            outboxStore.markInFlight(entry.entryId)
+            val expectedRevision = entry.updatedAtEpochSeconds
+            val claimed = outboxStore.markInFlight(
+                entryId = entry.entryId,
+                expectedUpdatedAtEpochSeconds = expectedRevision,
+            )
+            if (!claimed) {
+                continue
+            }
             when (val result = executeEntry(entry)) {
                 is Ok -> {
-                    outboxStore.remove(entry.entryId)
+                    outboxStore.remove(
+                        entryId = entry.entryId,
+                        expectedUpdatedAtEpochSeconds = expectedRevision,
+                    )
                     analyticsTracker.logEvent(
                         name = "outbox_entry_synced",
                         params = mapOf("operation" to entry.operationType.name),
@@ -70,31 +88,43 @@ class OutboxProcessor @Inject constructor(
                 is Err -> {
                     val nextAttempt = entry.attemptCount + 1
                     val errorCode = result.failure::class.simpleName ?: "Failure"
-                    if (isRetryable(result.failure) && nextAttempt <= MAX_ATTEMPTS) {
+                    if (isRetryable(result.failure)) {
                         val backoffSeconds = computeBackoffSeconds(nextAttempt, result.failure)
                         outboxStore.markRetryLater(
                             entryId = entry.entryId,
+                            expectedUpdatedAtEpochSeconds = expectedRevision,
                             attemptCount = nextAttempt,
                             nextAttemptAtEpochSeconds = clock.nowEpochSeconds() + backoffSeconds,
                             lastError = errorCode,
                         )
                         shouldRetry = true
                     } else {
-                        outboxStore.markPermanentFailure(
+                        val markedPermanent = outboxStore.markPermanentFailure(
                             entryId = entry.entryId,
+                            expectedUpdatedAtEpochSeconds = expectedRevision,
                             attemptCount = nextAttempt,
                             lastError = errorCode,
                         )
-                        crashReporter.recordNonFatal(
-                            throwable = IllegalStateException("Outbox permanent failure for ${entry.operationType.name}: $errorCode"),
-                            contextMap = mapOf(
-                                "outbox_entry_id" to entry.entryId,
-                                "outbox_operation" to entry.operationType.name,
-                            ),
-                        )
+                        if (markedPermanent) {
+                            try {
+                                profileCacheStore.withdrawOptimisticProfile(activeSession.accountId)
+                            } catch (_: Exception) {
+                            }
+                            crashReporter.recordNonFatal(
+                                throwable = IllegalStateException("Outbox permanent failure for ${entry.operationType.name}: $errorCode"),
+                                contextMap = mapOf(
+                                    "outbox_entry_id" to entry.entryId,
+                                    "outbox_operation" to entry.operationType.name,
+                                ),
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        if (shouldRetry || outboxStore.countPending() > 0) {
+            outboxSyncScheduler.scheduleSync()
         }
 
         return if (shouldRetry) {
@@ -109,11 +139,6 @@ class OutboxProcessor @Inject constructor(
     ): Result<UnitSentinel> {
         return when (entry.operationType) {
             OutboxOperationType.PROFILE_UPDATE -> executeProfileUpdate(entry)
-            OutboxOperationType.PRODUCT_REVIEW_SUBMIT,
-            OutboxOperationType.DRIVER_REVIEW_SUBMIT,
-            OutboxOperationType.CART_ITEM_UPSERT,
-            OutboxOperationType.CART_ITEM_REMOVE,
-            OutboxOperationType.CART_VOUCHER_APPLY -> Err(UnreadableAnswerFailure(""))
         }
     }
 
@@ -126,7 +151,15 @@ class OutboxProcessor @Inject constructor(
             return Err(UnreadableAnswerFailure(""))
         }
 
-        return sessionRepository.withValidSession { session ->
+        return sessionGateway.withValidSession { session ->
+            if (session.principalId != entry.principalId) {
+                return@withValidSession Err(
+                    UnauthorizedFailure(
+                        code = "PRINCIPAL_MISMATCH",
+                        detail = "",
+                    )
+                )
+            }
             safeApiCaller.execute(
                 call = {
                     identityApiService.updateProfile(
@@ -136,21 +169,24 @@ class OutboxProcessor @Inject constructor(
                     )
                 },
                 transform = { dto ->
-                    profileCacheStore.saveProfile(
-                        DeliveryProfile(
-                            id = dto.id,
-                            accountId = AccountId(dto.userId),
-                            fullName = dto.fullName,
-                            phoneNumber = dto.phoneNumber,
-                            streetAddress = dto.streetAddress,
-                            city = dto.city,
-                            postalCode = dto.postalCode,
-                            avatarUrl = dto.avatarUrl,
-                            latitude = dto.latitude,
-                            longitude = dto.longitude,
-                            geocodedAt = dto.geocodedAt,
+                    try {
+                        profileCacheStore.saveProfile(
+                            DeliveryProfile(
+                                id = dto.id,
+                                accountId = AccountId(dto.userId),
+                                fullName = dto.fullName,
+                                phoneNumber = dto.phoneNumber,
+                                streetAddress = dto.streetAddress,
+                                city = dto.city,
+                                postalCode = dto.postalCode,
+                                avatarUrl = dto.avatarUrl,
+                                latitude = dto.latitude,
+                                longitude = dto.longitude,
+                                geocodedAt = dto.geocodedAt,
+                            )
                         )
-                    )
+                    } catch (_: Exception) {
+                    }
                     Ok(UnitSentinel)
                 },
             )
@@ -164,6 +200,7 @@ class OutboxProcessor @Inject constructor(
             is NetworkFailure,
             is TimeoutFailure,
             is UnavailableFailure,
+            is UnknownOutcomeFailure,
             is RateLimitedFailure,
             is SignInDelayedFailure,
             is UnauthorizedFailure -> true
@@ -187,7 +224,6 @@ class OutboxProcessor @Inject constructor(
     }
 
     companion object {
-        const val MAX_ATTEMPTS = 5
         const val BASE_BACKOFF_SECONDS = 15L
         const val MAX_BACKOFF_SECONDS = 300L
     }
