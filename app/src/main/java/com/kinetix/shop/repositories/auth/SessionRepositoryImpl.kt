@@ -107,7 +107,6 @@ class SessionRepositoryImpl @Inject constructor(
         } ?: return Err(
             UnauthorizedFailure(
                 code = "NOT_SIGNED_IN",
-                detail = "",
             )
         )
 

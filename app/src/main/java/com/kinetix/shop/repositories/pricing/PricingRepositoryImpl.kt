@@ -60,18 +60,12 @@ class PricingRepositoryImpl @Inject constructor(
                         FlashSaleDto.serializer(),
                         element,
                     )
-                } catch (exception: SerializationException) {
-                    return@execute Err(
-                        UnreadableAnswerFailure(
-                            exception.message ?: "Unreadable flash sale response",
-                        )
-                    )
+                } catch (_: SerializationException) {
+                    return@execute Err(UnreadableAnswerFailure())
                 }
 
                 if (dto.flashPrice.toBigDecimalOrNull() == null) {
-                    return@execute Err(
-                        UnreadableAnswerFailure("Invalid flash sale price '${dto.flashPrice}'")
-                    )
+                    return@execute Err(UnreadableAnswerFailure())
                 }
 
                 Ok(
@@ -101,9 +95,7 @@ class PricingRepositoryImpl @Inject constructor(
                 val result = mutableListOf<PromotionDiscount>()
                 for (dto in dtos) {
                     if (dto.value.toBigDecimalOrNull() == null) {
-                        return@execute Err(
-                            UnreadableAnswerFailure("Invalid discount value '${dto.value}'")
-                        )
+                        return@execute Err(UnreadableAnswerFailure())
                     }
                     val type = if (dto.discountType.equals("PERCENTAGE", ignoreCase = true)) {
                         DiscountType.PERCENTAGE
@@ -138,7 +130,7 @@ class PricingRepositoryImpl @Inject constructor(
         currency: String,
     ): Result<ProductPriceIndication> {
         val baseDecimal = catalogPrice.toBigDecimalOrNull()
-            ?: return Err(UnreadableAnswerFailure("Invalid catalog price '$catalogPrice'"))
+            ?: return Err(UnreadableAnswerFailure())
 
         val flashSale = when (val flashResult = getFlashSale(sku)) {
             is Ok -> flashResult.value

@@ -51,11 +51,9 @@ class AuthRepositoryImpl @Inject constructor(
             },
             onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
                 val parsed = errorParser.parse(rawErrorBody)
-                val message = errorParser.extractMessage(parsed).orEmpty()
                 when (statusCode) {
                     409 -> ConflictFailure(
-                        code = parsed?.error ?: "EMAIL_ALREADY_EXISTS",
-                        detail = message,
+                        code = errorParser.extractErrorCode(parsed) ?: "EMAIL_ALREADY_EXISTS",
                     )
                     429 -> SignInDelayedFailure(
                         parsed?.retryAfterSeconds
@@ -104,7 +102,7 @@ class AuthRepositoryImpl @Inject constructor(
                     val token = dto.challengeToken
                     val expiresIn = dto.expiresIn
                     if (token.isNullOrBlank() || expiresIn == null) {
-                        return@execute Err(UnreadableAnswerFailure(""))
+                        return@execute Err(UnreadableAnswerFailure())
                     }
                     return@execute Ok(
                         SignInMfaChallenge(
@@ -124,7 +122,7 @@ class AuthRepositoryImpl @Inject constructor(
                     expiresIn == null ||
                     user == null
                 ) {
-                    return@execute Err(UnreadableAnswerFailure(""))
+                    return@execute Err(UnreadableAnswerFailure())
                 }
                 val session = StoredSession(
                     accessToken = accessToken,
@@ -161,7 +159,7 @@ class AuthRepositoryImpl @Inject constructor(
             },
             onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
                 val parsed = errorParser.parse(rawErrorBody)
-                val errorCode = parsed?.error.orEmpty()
+                val errorCode = errorParser.extractErrorCode(parsed).orEmpty()
                 val message = errorParser.extractMessage(parsed).orEmpty()
                 when (statusCode) {
                     429 -> SignInDelayedFailure(
@@ -180,12 +178,9 @@ class AuthRepositoryImpl @Inject constructor(
                         ) {
                             ChallengeSpentFailure(
                                 code = errorCode.ifEmpty { "CHALLENGE_SPENT" },
-                                detail = message,
                             )
                         } else {
-                            WrongTwoFactorCodeFailure(
-                                detail = message,
-                            )
+                            WrongTwoFactorCodeFailure()
                         }
                     }
                     else -> null

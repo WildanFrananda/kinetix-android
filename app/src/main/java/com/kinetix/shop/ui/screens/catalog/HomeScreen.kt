@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
+import com.kinetix.shop.models.common.DataOrigin
 import com.kinetix.shop.models.ids.ProductSku
 import com.kinetix.shop.state.catalog.HomeCatalogErrorUiState
 import com.kinetix.shop.state.catalog.HomeCatalogLoadedUiState
@@ -61,6 +62,19 @@ fun HomeScreen(
                 )
             }
             is HomeCatalogLoadedUiState -> {
+                val hasCachedData = current.productPage.dataOrigin == DataOrigin.CACHE ||
+                    current.categories.any { it.dataOrigin == DataOrigin.CACHE }
+                if (hasCachedData) {
+                    Text(
+                        text = stringResource(R.string.data_cached_banner),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = KinetixPalette.WarningAmber,
+                    )
+                    Spacer(
+                        modifier = Modifier.height(8.dp),
+                    )
+                }
+
                 if (current.categoriesUnavailable) {
                     Text(
                         text = stringResource(R.string.home_categories_unavailable),

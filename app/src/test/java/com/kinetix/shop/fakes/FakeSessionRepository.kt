@@ -64,7 +64,7 @@ class FakeSessionRepository(
         action: suspend (StoredSession) -> Result<T>,
     ): Result<T> {
         val current = sessionFlow.value ?: return Err(
-            UnauthorizedFailure("NOT_SIGNED_IN", "Not signed in")
+            UnauthorizedFailure("NOT_SIGNED_IN")
         )
         return action(current)
     }

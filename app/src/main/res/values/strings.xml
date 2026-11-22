@@ -19,6 +19,8 @@
     <string name="nav_sign_in">Sign In</string>
     <string name="nav_back">Back</string>
 
+    <string name="data_cached_banner">Showing saved data; details may be out of date.</string>
+
     <string name="error_credentials_required">Email and password are required.</string>
     <string name="error_password_too_short">Password must be at least 12 characters.</string>
     <string name="error_invalid_totp_code">Enter a valid 6-digit authenticator code.</string>
@@ -29,17 +31,23 @@
     <string name="error_wrong_totp_code">Incorrect 6-digit verification code.</string>
     <string name="error_wrong_password">Incorrect account password.</string>
     <string name="error_unauthorized">Invalid email or password.</string>
+    <string name="error_session_expired">Your session has ended. Please sign in again.</string>
     <string name="error_forbidden">Access denied.</string>
     <string name="error_not_found">Requested resource was not found.</string>
     <string name="error_conflict">This request conflicts with existing account data.</string>
+    <string name="error_email_already_exists">An account with this email already exists.</string>
     <string name="error_timeout">Request timed out. Please try again.</string>
     <string name="error_unavailable">Service is temporarily unavailable.</string>
     <string name="error_network">Unable to reach Kinetix. Check your connection.</string>
-    <string name="error_rate_limited">Too many requests. Please wait %1$d seconds.</string>
     <string name="error_validation_generic">Please check your input and try again.</string>
     <string name="error_unreadable_response">Received an unreadable response from the server.</string>
     <string name="error_storage">Unable to access secure local session storage.</string>
     <string name="error_unknown_outcome">Request outcome was interrupted. Refresh before retrying.</string>
+
+    <plurals name="error_rate_limited">
+        <item quantity="one">Too many requests. Please wait %1$d second.</item>
+        <item quantity="other">Too many requests. Please wait %1$d seconds.</item>
+    </plurals>
 
     <string name="action_retry">Retry</string>
     <string name="action_prev">Prev</string>
@@ -111,7 +119,7 @@
     <string name="stock_available_with_count">In Stock (%1$d)</string>
     <string name="stock_available">In Stock</string>
     <string name="stock_out_of_stock">Out of Stock</string>
-    <string name="stock_unavailable">Stock Unavailable</string>
+    <string name="stock_unavailable">Stock could not be checked</string>
 
     <string name="search_field_label">Search products</string>
     <string name="search_button">Go</string>
@@ -124,25 +132,40 @@
     <string name="search_idle_prompt">Enter a search term or tap Go to browse indexed products.</string>
     <string name="search_loading">Searching…</string>
     <string name="search_stale_index_banner">Search index is refreshing; very recent catalog changes may take a moment to appear.</string>
-    <string name="search_results_count">%1$d results found</string>
     <string name="search_category_prefix">Category: %1$s</string>
+
+    <plurals name="search_results_count">
+        <item quantity="one">%1$d result found</item>
+        <item quantity="other">%1$d results found</item>
+    </plurals>
 
     <string name="product_detail_loading">Loading product details…</string>
     <string name="product_detail_sku_category_format">SKU: %1$s • Category: %2$s</string>
     <string name="product_detail_flash_sale_badge">FLASH SALE • %1$s (%2$d left)</string>
     <string name="product_detail_discount_badge">PROMO • %1$s</string>
     <string name="product_detail_indication_note">Indicative price only. Authoritative total is calculated by Kinetix Pricing during checkout.</string>
-    <string name="product_detail_warehouse_available">Warehouse Stock: %1$d units available</string>
     <string name="product_detail_warehouse_available_no_count">Warehouse Stock: Available</string>
     <string name="product_detail_warehouse_out_of_stock">Out of Stock across warehouse bins</string>
-    <string name="product_detail_warehouse_unavailable">Stock check temporarily unavailable right now</string>
-    <string name="product_detail_merchant_rating_format">Merchant Rating: %1$.1f ★ (%2$d reviews)</string>
+    <string name="product_detail_warehouse_unavailable">Stock could not be checked right now</string>
     <string name="product_detail_merchant_principal_format">Merchant: %1$s</string>
     <string name="product_detail_reviews_title">Product Reviews</string>
     <string name="product_detail_reviews_unavailable">Reviews are currently unavailable.</string>
-    <string name="product_detail_reviews_summary_format">%1$.1f ★ across %2$d reviews</string>
     <string name="product_detail_reviews_empty">No buyer reviews yet for this product.</string>
     <string name="product_detail_review_rating_format">Rating: %1$d / 5</string>
+
+    <plurals name="product_detail_warehouse_available">
+        <item quantity="one">Warehouse Stock: %1$d unit available</item>
+        <item quantity="other">Warehouse Stock: %1$d units available</item>
+    </plurals>
+    <plurals name="product_detail_merchant_rating_format">
+        <item quantity="one">Merchant Rating: %1$.1f ★ (%2$d review)</item>
+        <item quantity="other">Merchant Rating: %1$.1f ★ (%2$d reviews)</item>
+    </plurals>
+    <plurals name="product_detail_reviews_summary_format">
+        <item quantity="one">%1$.1f ★ across %2$d review</item>
+        <item quantity="other">%1$.1f ★ across %2$d reviews</item>
+    </plurals>
+
     <string name="session_unreadable_message">Your saved session could not be read on this device. Sign in again to replace it.</string>
     <string name="session_unreadable_sign_in_action">Sign In Again</string>
     <string name="session_non_buyer_role_notice">This app is for buyer accounts. Wallet features require a customer account.</string>

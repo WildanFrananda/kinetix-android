@@ -67,7 +67,6 @@ class RegisterViewModelTest {
     fun exposesConflictFailureWhenEmailAlreadyExists() = runTest(testDispatcher) {
         val conflict = ConflictFailure(
             code = "EMAIL_ALREADY_EXISTS",
-            detail = "Email already registered",
         )
         val repository = FakeAuthRepository().apply {
             registerResult = Err(conflict)

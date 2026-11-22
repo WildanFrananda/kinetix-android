@@ -1,0 +1,167 @@
+<resources>
+    <string name="app_name">Kinetix</string>
+    <string name="brand_wordmark">KINETIX</string>
+    <string name="config_error_title">Konfigurasi Diperlukan</string>
+    <string name="config_error_subtitle">Kinetix tidak dapat dijalankan karena pengaturan endpoint wajib tidak valid:</string>
+    <string name="config_error_hint">Sediakan nilai KINETIX_HTTP_BASE dan KINETIX_WS_BASE yang valid melalui properti Gradle atau variabel lingkungan.</string>
+    <string name="config_error_reason_bullet">• %1$s</string>
+    <string name="config_error_reason_missing">%1$s belum diisi</string>
+    <string name="config_error_reason_invalid_uri">%1$s bukan URI yang valid</string>
+    <string name="config_error_reason_scheme">%1$s harus menggunakan %2$s://</string>
+    <string name="config_error_reason_missing_host">%1$s harus menyertakan host</string>
+    <string name="config_error_reason_has_path">%1$s tidak boleh berisi path</string>
+    <string name="config_error_reason_has_query_or_fragment">%1$s tidak boleh berisi parameter query atau fragment</string>
+    <string name="config_error_reason_generic">Konfigurasi endpoint tidak valid</string>
+
+    <string name="nav_home">Beranda</string>
+    <string name="nav_search">Cari</string>
+    <string name="nav_profile">Profil</string>
+    <string name="nav_sign_in">Masuk</string>
+    <string name="nav_back">Kembali</string>
+
+    <string name="data_cached_banner">Menampilkan data tersimpan; detail mungkin belum terbaru.</string>
+
+    <string name="error_credentials_required">Email dan kata sandi wajib diisi.</string>
+    <string name="error_password_too_short">Kata sandi harus terdiri dari minimal 12 karakter.</string>
+    <string name="error_invalid_totp_code">Masukkan kode autentikator 6 digit yang valid.</string>
+    <string name="error_password_required">Kata sandi wajib diisi.</string>
+    <string name="error_profile_fields_required">Semua kolom profil pengiriman wajib diisi.</string>
+    <string name="error_admin_not_supported">Akun administrator tidak didukung di aplikasi pembeli Kinetix.</string>
+    <string name="error_challenge_expired">Sesi verifikasi telah kedaluwarsa. Silakan masuk kembali.</string>
+    <string name="error_wrong_totp_code">Kode verifikasi 6 digit salah.</string>
+    <string name="error_wrong_password">Kata sandi akun salah.</string>
+    <string name="error_unauthorized">Email atau kata sandi salah.</string>
+    <string name="error_session_expired">Sesi Anda telah berakhir. Silakan masuk kembali.</string>
+    <string name="error_forbidden">Akses ditolak.</string>
+    <string name="error_not_found">Data yang diminta tidak ditemukan.</string>
+    <string name="error_conflict">Permintaan ini bertentangan dengan data akun yang sudah ada.</string>
+    <string name="error_email_already_exists">Akun dengan email ini sudah terdaftar.</string>
+    <string name="error_timeout">Permintaan melebihi batas waktu. Silakan coba lagi.</string>
+    <string name="error_unavailable">Layanan sedang tidak tersedia untuk sementara.</string>
+    <string name="error_network">Tidak dapat terhubung ke Kinetix. Periksa koneksi internet Anda.</string>
+    <string name="error_validation_generic">Periksa kembali data yang dimasukkan lalu coba lagi.</string>
+    <string name="error_unreadable_response">Menerima respons yang tidak dapat dibaca dari server.</string>
+    <string name="error_storage">Tidak dapat mengakses penyimpanan sesi lokal yang aman.</string>
+    <string name="error_unknown_outcome">Status permintaan terputus. Muat ulang sebelum mencoba lagi.</string>
+
+    <plurals name="error_rate_limited">
+        <item quantity="other">Terlalu banyak permintaan. Silakan tunggu %1$d detik.</item>
+    </plurals>
+
+    <string name="action_retry">Coba Lagi</string>
+    <string name="action_prev">Sebelumnya</string>
+    <string name="action_next">Berikutnya</string>
+    <string name="pagination_page_of">Halaman %1$d dari %2$d</string>
+
+    <string name="sign_in_title">Masuk</string>
+    <string name="sign_in_subtitle">Akses akun pembeli Kinetix Anda</string>
+    <string name="sign_in_delayed_banner">Terlalu banyak percobaan masuk. Tunggu %1$d dtk.</string>
+    <string name="sign_in_button_submitting">Sedang Masuk…</string>
+    <string name="sign_in_button_delayed">Tunggu %1$d dtk</string>
+    <string name="sign_in_button_idle">Masuk</string>
+    <string name="sign_in_switch_to_register">Baru di Kinetix? Buat akun</string>
+
+    <string name="register_title">Buat Akun Pembeli</string>
+    <string name="register_subtitle">Bergabung dengan Kinetix untuk berbelanja dan melacak pesanan secara langsung</string>
+    <string name="register_delayed_banner">Batas pendaftaran aktif. Tunggu %1$d dtk.</string>
+    <string name="register_button_submitting">Membuat Akun…</string>
+    <string name="register_button_delayed">Tunggu %1$d dtk</string>
+    <string name="register_button_idle">Buat Akun</string>
+    <string name="register_switch_to_sign_in">Sudah punya akun? Masuk</string>
+
+    <string name="field_email">Alamat Email</string>
+    <string name="field_password">Kata Sandi</string>
+    <string name="field_authenticator_code">Kode Autentikator 6 Digit</string>
+    <string name="field_account_password">Kata Sandi Akun</string>
+
+    <string name="two_factor_verify_title">Verifikasi Dua Faktor</string>
+    <string name="two_factor_verify_subtitle">Masukkan kode TOTP 6 digit dari aplikasi autentikator Anda</string>
+    <string name="two_factor_verify_delayed_banner">Terlalu banyak percobaan verifikasi. Tunggu %1$d dtk.</string>
+    <string name="two_factor_verify_button_submitting">Memverifikasi…</string>
+    <string name="two_factor_verify_button_delayed">Tunggu %1$d dtk</string>
+    <string name="two_factor_verify_button_idle">Verifikasi Kode</string>
+    <string name="two_factor_verify_back_to_sign_in">Kembali ke Masuk</string>
+
+    <string name="two_factor_settings_title">Keamanan Dua Faktor (TOTP)</string>
+    <string name="two_factor_settings_subtitle">Kelola perlindungan autentikator untuk akun Kinetix Anda</string>
+    <string name="two_factor_delayed_banner">Terlalu banyak percobaan. Tunggu %1$d dtk sebelum mencoba lagi.</string>
+    <string name="two_factor_completed_enabled">Autentikasi dua faktor kini aktif.</string>
+    <string name="two_factor_completed_disabled">Autentikasi dua faktor kini nonaktif.</string>
+    <string name="two_factor_secret_label">Kunci Rahasia Autentikator:</string>
+    <string name="two_factor_uri_label">URI Provisioning: %1$s</string>
+    <string name="two_factor_disable_button">Nonaktifkan 2FA</string>
+    <string name="two_factor_generate_secret_button">1. Buat Kunci Rahasia</string>
+    <string name="two_factor_enable_button">2. Konfirmasi &amp; Aktifkan 2FA</string>
+
+    <string name="profile_title">Profil Pembeli &amp; Pengiriman</string>
+    <string name="profile_loading">Memuat profil pembeli…</string>
+    <string name="profile_not_created_hint">Lengkapi detail pengiriman di bawah agar alamat Anda otomatis terisi saat checkout.</string>
+    <string name="profile_account_format">Akun #%1$d • Principal: %2$s</string>
+    <string name="profile_geocoded_format">Koordinat jalan: %1$.4f, %2$.4f</string>
+    <string name="profile_saved_banner">Profil pengiriman diperbarui.</string>
+    <string name="profile_queued_offline_banner">Tersimpan di perangkat ini, belum terkirim.</string>
+    <string name="profile_field_full_name">Nama Lengkap Penerima</string>
+    <string name="profile_field_phone">Nomor Telepon</string>
+    <string name="profile_field_street">Alamat Jalan</string>
+    <string name="profile_field_city">Kota</string>
+    <string name="profile_field_postal_code">Kode Pos</string>
+    <string name="profile_save_button_saving">Menyimpan…</string>
+    <string name="profile_save_button_idle">Simpan Profil Pengiriman</string>
+    <string name="profile_manage_2fa_button">Kelola Autentikasi Dua Faktor (2FA)</string>
+    <string name="profile_sign_out_button">Keluar</string>
+
+    <string name="home_loading">Memuat katalog…</string>
+    <string name="home_category_all">Semua</string>
+    <string name="home_categories_unavailable">Filter kategori sedang tidak tersedia.</string>
+    <string name="home_empty_products">Belum ada produk tersedia pada kategori ini.</string>
+
+    <string name="stock_available_with_count">Tersedia (%1$d)</string>
+    <string name="stock_available">Tersedia</string>
+    <string name="stock_out_of_stock">Stok Habis</string>
+    <string name="stock_unavailable">Stok tidak dapat diperiksa</string>
+
+    <string name="search_field_label">Cari produk</string>
+    <string name="search_button">Cari</string>
+    <string name="search_sort_relevance">Relevansi</string>
+    <string name="search_sort_price_asc">Harga ↑</string>
+    <string name="search_sort_newest">Terbaru</string>
+    <string name="error_search_malformed_query">Kata kunci atau filter pencarian tidak valid.</string>
+    <string name="error_search_index_unavailable">Pencarian sedang tidak tersedia untuk sementara. Silakan coba beberapa saat lagi.</string>
+    <string name="error_search_corrupt_record">Sebagian hasil pencarian tidak dapat dibaca.</string>
+    <string name="search_idle_prompt">Masukkan kata kunci atau ketuk Cari untuk menelusuri produk.</string>
+    <string name="search_loading">Mencari…</string>
+    <string name="search_stale_index_banner">Indeks pencarian sedang diperbarui; perubahan katalog terbaru mungkin memerlukan waktu beberapa saat.</string>
+    <string name="search_category_prefix">Kategori: %1$s</string>
+
+    <plurals name="search_results_count">
+        <item quantity="other">%1$d hasil ditemukan</item>
+    </plurals>
+
+    <string name="product_detail_loading">Memuat detail produk…</string>
+    <string name="product_detail_sku_category_format">SKU: %1$s • Kategori: %2$s</string>
+    <string name="product_detail_flash_sale_badge">FLASH SALE • %1$s (sisa %2$d)</string>
+    <string name="product_detail_discount_badge">PROMO • %1$s</string>
+    <string name="product_detail_indication_note">Harga indikasi saja. Total akhir dihitung oleh Kinetix Pricing saat checkout.</string>
+    <string name="product_detail_warehouse_available_no_count">Stok Gudang: Tersedia</string>
+    <string name="product_detail_warehouse_out_of_stock">Stok habis di semua rak gudang</string>
+    <string name="product_detail_warehouse_unavailable">Stok tidak dapat diperiksa saat ini</string>
+    <string name="product_detail_merchant_principal_format">Merchant: %1$s</string>
+    <string name="product_detail_reviews_title">Ulasan Produk</string>
+    <string name="product_detail_reviews_unavailable">Ulasan sedang tidak tersedia.</string>
+    <string name="product_detail_reviews_empty">Belum ada ulasan pembeli untuk produk ini.</string>
+    <string name="product_detail_review_rating_format">Penilaian: %1$d / 5</string>
+
+    <plurals name="product_detail_warehouse_available">
+        <item quantity="other">Stok Gudang: %1$d unit tersedia</item>
+    </plurals>
+    <plurals name="product_detail_merchant_rating_format">
+        <item quantity="other">Rating Merchant: %1$.1f ★ (%2$d ulasan)</item>
+    </plurals>
+    <plurals name="product_detail_reviews_summary_format">
+        <item quantity="other">%1$.1f ★ dari %2$d ulasan</item>
+    </plurals>
+
+    <string name="session_unreadable_message">Sesi tersimpan Anda tidak dapat dibaca di perangkat ini. Masuk kembali untuk menggantinya.</string>
+    <string name="session_unreadable_sign_in_action">Masuk Kembali</string>
+    <string name="session_non_buyer_role_notice">Aplikasi ini khusus untuk akun pembeli. Fitur dompet memerlukan akun pelanggan.</string>
+</resources>

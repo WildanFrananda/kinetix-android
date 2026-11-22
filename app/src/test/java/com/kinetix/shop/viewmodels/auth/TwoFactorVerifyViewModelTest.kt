@@ -35,7 +35,6 @@ class TwoFactorVerifyViewModelTest {
     fun invokesOnChallengeExpiredWhenChallengeTokenIsSpent() = runTest(testDispatcher) {
         val failure = ChallengeSpentFailure(
             code = "CHALLENGE_SPENT",
-            detail = "Challenge expired",
         )
         val repository = FakeAuthRepository().apply {
             verifyTwoFactorResult = Err(failure)

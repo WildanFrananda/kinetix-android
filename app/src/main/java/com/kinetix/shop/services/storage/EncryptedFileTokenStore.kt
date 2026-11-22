@@ -1,6 +1,7 @@
 package com.kinetix.shop.services.storage
 
 import com.kinetix.shop.core.failure.StorageFailure
+import com.kinetix.shop.core.failure.StorageFailureReason
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.result.Result
@@ -63,8 +64,8 @@ class EncryptedFileTokenStore(
                     )
                 } catch (exception: CancellationException) {
                     throw exception
-                } catch (exception: Exception) {
-                    Err(StorageFailure(exception.message ?: "Failed to read stored session"))
+                } catch (_: Exception) {
+                    Err(StorageFailure(StorageFailureReason.READ_FAILED))
                 }
             }
         }
@@ -75,7 +76,7 @@ class EncryptedFileTokenStore(
             withContext(ioDispatcher) {
                 try {
                     if (!storageDirectory.exists() && !storageDirectory.mkdirs()) {
-                        return@withContext Err(StorageFailure("Failed to create storage directory"))
+                        return@withContext Err(StorageFailure(StorageFailureReason.DIRECTORY_CREATION_FAILED))
                     }
 
                     val payload = StoredSessionPayloadDto(
@@ -103,8 +104,8 @@ class EncryptedFileTokenStore(
                     Ok(UnitSentinel)
                 } catch (exception: CancellationException) {
                     throw exception
-                } catch (exception: Exception) {
-                    Err(StorageFailure(exception.message ?: "Failed to write stored session"))
+                } catch (_: Exception) {
+                    Err(StorageFailure(StorageFailureReason.WRITE_FAILED))
                 }
             }
         }
@@ -119,14 +120,14 @@ class EncryptedFileTokenStore(
                     }
 
                     if (targetFile.exists() && !targetFile.delete()) {
-                        return@withContext Err(StorageFailure("Failed to delete stored session"))
+                        return@withContext Err(StorageFailure(StorageFailureReason.CLEAR_FAILED))
                     }
 
                     Ok(UnitSentinel)
                 } catch (exception: CancellationException) {
                     throw exception
-                } catch (exception: Exception) {
-                    Err(StorageFailure(exception.message ?: "Failed to clear stored session"))
+                } catch (_: Exception) {
+                    Err(StorageFailure(StorageFailureReason.CLEAR_FAILED))
                 }
             }
         }

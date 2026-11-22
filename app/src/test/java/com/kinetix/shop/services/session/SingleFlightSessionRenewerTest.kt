@@ -1,6 +1,7 @@
 package com.kinetix.shop.services.session
 
 import com.kinetix.shop.core.failure.StorageFailure
+import com.kinetix.shop.core.failure.StorageFailureReason
 import com.kinetix.shop.core.failure.UnauthorizedFailure
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
@@ -147,7 +148,7 @@ class SingleFlightSessionRenewerTest {
         val appScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
         val store = FakeTokenStore(
             current = initialSession,
-            writeFailure = StorageFailure("Disk full"),
+            writeFailure = StorageFailure(StorageFailureReason.WRITE_FAILED),
         )
         val transport = FakeTokenRefreshTransport(
             nextOutcome = RefreshTransportRotated(rotatedSession),

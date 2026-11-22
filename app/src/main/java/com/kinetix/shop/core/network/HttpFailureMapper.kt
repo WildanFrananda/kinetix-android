@@ -33,7 +33,6 @@ class HttpFailureMapper @Inject constructor(
         } else {
             "HTTP_$statusCode"
         }
-        val detail = errorParser.extractMessage(parsed) ?: "HTTP $statusCode"
         val resolvedRequestId = parsed?.traceId?.takeIf { it.isNotBlank() }
             ?: parsed?.requestId?.takeIf { it.isNotBlank() }
             ?: requestId
@@ -41,32 +40,27 @@ class HttpFailureMapper @Inject constructor(
         return when (statusCode) {
             400, 422 -> ValidationFailure(
                 code = code,
-                detail = detail,
                 field = parsed?.field,
                 requestId = resolvedRequestId,
             )
 
             401 -> UnauthorizedFailure(
                 code = code,
-                detail = detail,
                 requestId = resolvedRequestId,
             )
 
             403 -> ForbiddenFailure(
                 code = code,
-                detail = detail,
                 requestId = resolvedRequestId,
             )
 
             404 -> NotFoundFailure(
                 code = code,
-                detail = detail,
                 requestId = resolvedRequestId,
             )
 
             409 -> ConflictFailure(
                 code = code,
-                detail = detail,
                 requestId = resolvedRequestId,
             )
 
@@ -91,7 +85,6 @@ class HttpFailureMapper @Inject constructor(
                 if (!isServiceJson && isWrite) {
                     UnknownOutcomeFailure(
                         code = code,
-                        detail = detail,
                         requestId = resolvedRequestId,
                     )
                 } else {
@@ -105,7 +98,6 @@ class HttpFailureMapper @Inject constructor(
 
             else -> UnknownOutcomeFailure(
                 code = code,
-                detail = detail,
                 requestId = resolvedRequestId,
             )
         }

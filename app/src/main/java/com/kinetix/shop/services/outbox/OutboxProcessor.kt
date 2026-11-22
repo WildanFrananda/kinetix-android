@@ -148,7 +148,7 @@ class OutboxProcessor @Inject constructor(
         val payloadObject = try {
             json.parseToJsonElement(entry.payloadJson).jsonObject
         } catch (_: Exception) {
-            return Err(UnreadableAnswerFailure(""))
+            return Err(UnreadableAnswerFailure())
         }
 
         return sessionGateway.withValidSession { session ->
@@ -156,7 +156,6 @@ class OutboxProcessor @Inject constructor(
                 return@withValidSession Err(
                     UnauthorizedFailure(
                         code = "PRINCIPAL_MISMATCH",
-                        detail = "",
                     )
                 )
             }

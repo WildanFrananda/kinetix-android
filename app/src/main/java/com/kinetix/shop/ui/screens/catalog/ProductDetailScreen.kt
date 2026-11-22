@@ -19,12 +19,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
+import com.kinetix.shop.core.format.LocaleFormatter
 import com.kinetix.shop.models.catalog.StockStatus
+import com.kinetix.shop.models.common.DataOrigin
 import com.kinetix.shop.models.ids.ProductSku
 import com.kinetix.shop.state.catalog.ProductDetailErrorUiState
 import com.kinetix.shop.state.catalog.ProductDetailLoadedUiState
@@ -70,6 +73,14 @@ fun ProductDetailScreen(
                 val priceIndication = current.priceIndication
                 val hasSavings = priceIndication.effectivePrice != priceIndication.catalogPrice
 
+                if (product.dataOrigin == DataOrigin.CACHE) {
+                    Text(
+                        text = stringResource(R.string.data_cached_banner),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = KinetixPalette.WarningAmber,
+                    )
+                }
+
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = KinetixPalette.CardSlate,
@@ -100,13 +111,19 @@ fun ProductDetailScreen(
                             verticalAlignment = Alignment.Bottom,
                         ) {
                             Text(
-                                text = "${priceIndication.currency} ${priceIndication.effectivePrice}",
+                                text = LocaleFormatter.formatMoney(
+                                    amountString = priceIndication.effectivePrice,
+                                    currencyCode = priceIndication.currency,
+                                ),
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = KinetixPalette.ElectricVolt,
                             )
                             if (hasSavings) {
                                 Text(
-                                    text = "${priceIndication.currency} ${priceIndication.catalogPrice}",
+                                    text = LocaleFormatter.formatMoney(
+                                        amountString = priceIndication.catalogPrice,
+                                        currencyCode = priceIndication.currency,
+                                    ),
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         textDecoration = TextDecoration.LineThrough,
                                     ),
@@ -150,8 +167,9 @@ fun ProductDetailScreen(
                         val stockText = when (product.warehouseStock.status) {
                             StockStatus.IN_STOCK -> {
                                 if (availableQty != null) {
-                                    stringResource(
-                                        R.string.product_detail_warehouse_available,
+                                    pluralStringResource(
+                                        R.plurals.product_detail_warehouse_available,
+                                        availableQty,
                                         availableQty,
                                     )
                                 } else {
@@ -200,8 +218,9 @@ fun ProductDetailScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = stringResource(
-                                    R.string.product_detail_merchant_rating_format,
+                                text = pluralStringResource(
+                                    R.plurals.product_detail_merchant_rating_format,
+                                    merchantReviews.totalReviews,
                                     merchantReviews.averageRating,
                                     merchantReviews.totalReviews,
                                 ),
@@ -244,8 +263,9 @@ fun ProductDetailScreen(
                             )
                         } else {
                             Text(
-                                text = stringResource(
-                                    R.string.product_detail_reviews_summary_format,
+                                text = pluralStringResource(
+                                    R.plurals.product_detail_reviews_summary_format,
+                                    productReviews.totalReviews,
                                     productReviews.averageRating,
                                     productReviews.totalReviews,
                                 ),
@@ -280,7 +300,7 @@ fun ProductDetailScreen(
                                             )
                                         }
                                         Text(
-                                            text = review.createdAt,
+                                            text = LocaleFormatter.formatIsoTimestamp(review.createdAt),
                                             style = MaterialTheme.typography.labelMedium,
                                             color = KinetixPalette.TextSecondary,
                                         )

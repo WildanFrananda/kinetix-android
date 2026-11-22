@@ -8,13 +8,13 @@ import com.kinetix.shop.repositories.auth.TwoFactorRepository
 
 class FakeTwoFactorRepository : TwoFactorRepository {
     var setupResult: Result<TwoFactorSetupSecret> = Err(
-        UnauthorizedFailure("NOT_CONFIGURED", "Not configured")
+        UnauthorizedFailure("NOT_CONFIGURED")
     )
     var enableResult: Result<Boolean> = Err(
-        UnauthorizedFailure("NOT_CONFIGURED", "Not configured")
+        UnauthorizedFailure("NOT_CONFIGURED")
     )
     var disableResult: Result<Boolean> = Err(
-        UnauthorizedFailure("NOT_CONFIGURED", "Not configured")
+        UnauthorizedFailure("NOT_CONFIGURED")
     )
 
     var setupCallCount: Int = 0
