@@ -2,6 +2,7 @@ package com.kinetix.shop.di
 
 import android.content.Context
 import androidx.room.Room
+import com.google.firebase.FirebaseApp
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.kinetix.shop.BuildConfig
 import com.kinetix.shop.core.concurrency.ApplicationScope
@@ -12,6 +13,10 @@ import com.kinetix.shop.core.config.AppConfigValid
 import com.kinetix.shop.core.config.AppConfigValidator
 import com.kinetix.shop.core.config.NetworkPolicy
 import com.kinetix.shop.core.network.RequestCorrelationInterceptor
+import com.kinetix.shop.core.network.RequestCorrelationRecorder
+import com.kinetix.shop.services.config.FeatureFlagProvider
+import com.kinetix.shop.services.config.FirebaseFeatureFlagProvider
+import com.kinetix.shop.services.config.LocalFeatureFlagProvider
 import com.kinetix.shop.services.local.CatalogCacheDao
 import com.kinetix.shop.services.local.KinetixCacheDatabase
 import com.kinetix.shop.services.local.KinetixLedgerDatabase
@@ -25,6 +30,12 @@ import com.kinetix.shop.services.remote.SearchApiService
 import com.kinetix.shop.services.storage.EncryptedFileTokenStore
 import com.kinetix.shop.services.storage.SessionCipher
 import com.kinetix.shop.services.storage.TokenStore
+import com.kinetix.shop.services.telemetry.AnalyticsTracker
+import com.kinetix.shop.services.telemetry.CrashReporter
+import com.kinetix.shop.services.telemetry.FirebaseAnalyticsTracker
+import com.kinetix.shop.services.telemetry.FirebaseCrashReporter
+import com.kinetix.shop.services.telemetry.LocalAnalyticsTracker
+import com.kinetix.shop.services.telemetry.LocalCrashReporter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -225,5 +236,56 @@ object CoreModule {
         database: KinetixLedgerDatabase,
     ): OutboxDao {
         return database.outboxDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideCrashReporter(
+        @ApplicationContext context: Context,
+        firebaseCrashReporter: FirebaseCrashReporter,
+        localCrashReporter: LocalCrashReporter,
+    ): CrashReporter {
+        return if (FirebaseApp.getApps(context).isNotEmpty()) {
+            firebaseCrashReporter
+        } else {
+            localCrashReporter
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideRequestCorrelationRecorder(
+        crashReporter: CrashReporter,
+        localCrashReporter: LocalCrashReporter,
+    ): RequestCorrelationRecorder {
+        return crashReporter as? RequestCorrelationRecorder ?: localCrashReporter
+    }
+
+    @Provides
+    @Singleton
+    fun provideAnalyticsTracker(
+        @ApplicationContext context: Context,
+        firebaseAnalyticsTracker: FirebaseAnalyticsTracker,
+        localAnalyticsTracker: LocalAnalyticsTracker,
+    ): AnalyticsTracker {
+        return if (FirebaseApp.getApps(context).isNotEmpty()) {
+            firebaseAnalyticsTracker
+        } else {
+            localAnalyticsTracker
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideFeatureFlagProvider(
+        @ApplicationContext context: Context,
+        firebaseFeatureFlagProvider: FirebaseFeatureFlagProvider,
+        localFeatureFlagProvider: LocalFeatureFlagProvider,
+    ): FeatureFlagProvider {
+        return if (FirebaseApp.getApps(context).isNotEmpty()) {
+            firebaseFeatureFlagProvider
+        } else {
+            localFeatureFlagProvider
+        }
     }
 }

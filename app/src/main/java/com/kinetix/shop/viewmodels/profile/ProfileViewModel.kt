@@ -18,6 +18,7 @@ import com.kinetix.shop.state.profile.ProfileSavingUiState
 import com.kinetix.shop.state.profile.ProfileUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,25 +31,21 @@ class ProfileViewModel @Inject constructor(
     private val mutableState = MutableStateFlow<ProfileUiState>(ProfileLoadingUiState)
     val uiState: StateFlow<ProfileUiState> = mutableState.asStateFlow()
 
+    private var loadJob: Job? = null
+
+    init {
+        startLoad()
+    }
+
     fun loadProfile() {
-        mutableState.value = ProfileLoadingUiState
-        viewModelScope.launch {
-            when (val result = profileRepository.getProfile()) {
-                is Ok -> {
-                    mutableState.value = ProfileLoadedUiState(
-                        profile = result.value,
-                        queuedOfflineBanner = !result.value.isConfirmed,
-                    )
-                }
-                is Err -> {
-                    if (result.failure is NotFoundFailure) {
-                        mutableState.value = ProfileLoadedUiState(profile = null)
-                    } else {
-                        mutableState.value = ProfileErrorUiState(failure = result.failure)
-                    }
-                }
-            }
+        if (loadJob?.isActive == true || mutableState.value is ProfileLoadedUiState) {
+            return
         }
+        startLoad()
+    }
+
+    fun refreshProfile() {
+        startLoad()
     }
 
     fun saveProfile(
@@ -133,6 +130,28 @@ class ProfileViewModel @Inject constructor(
                         profile = existingProfile,
                         errorFailure = result.failure,
                     )
+                }
+            }
+        }
+    }
+
+    private fun startLoad() {
+        loadJob?.cancel()
+        mutableState.value = ProfileLoadingUiState
+        loadJob = viewModelScope.launch {
+            when (val result = profileRepository.getProfile()) {
+                is Ok -> {
+                    mutableState.value = ProfileLoadedUiState(
+                        profile = result.value,
+                        queuedOfflineBanner = !result.value.isConfirmed,
+                    )
+                }
+                is Err -> {
+                    if (result.failure is NotFoundFailure) {
+                        mutableState.value = ProfileLoadedUiState(profile = null)
+                    } else {
+                        mutableState.value = ProfileErrorUiState(failure = result.failure)
+                    }
                 }
             }
         }

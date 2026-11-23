@@ -7,6 +7,7 @@ import com.kinetix.shop.fakes.FakeAuthRepository
 import com.kinetix.shop.models.auth.StoredSession
 import com.kinetix.shop.models.ids.AccountId
 import com.kinetix.shop.models.ids.PrincipalId
+import com.kinetix.shop.state.common.FormAuthenticatedUiState
 import com.kinetix.shop.state.common.FormErrorUiState
 import com.kinetix.shop.state.common.FormIdleUiState
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -37,7 +37,7 @@ class RegisterViewModelTest {
     }
 
     @Test
-    fun invokesOnRegisteredWhenRegistrationSucceeds() = runTest(testDispatcher) {
+    fun emitsAuthenticatedStateWhenRegistrationSucceedsAndResetsOnConsume() = runTest(testDispatcher) {
         val session = StoredSession(
             accessToken = "acc-1",
             refreshToken = "ref-1",
@@ -50,16 +50,16 @@ class RegisterViewModelTest {
             registerResult = Ok(session)
         }
         val viewModel = RegisterViewModel(repository)
-        var registeredCalled = false
 
         viewModel.register(
             email = "new@kinetix.test",
             password = "password12345",
-            onRegistered = { registeredCalled = true },
         )
         advanceUntilIdle()
 
-        assertTrue(registeredCalled)
+        assertEquals(FormAuthenticatedUiState, viewModel.uiState.value)
+
+        viewModel.consumeNavigationEvent()
         assertEquals(FormIdleUiState, viewModel.uiState.value)
     }
 
@@ -76,7 +76,6 @@ class RegisterViewModelTest {
         viewModel.register(
             email = "dup@kinetix.test",
             password = "password12345",
-            onRegistered = {},
         )
         advanceUntilIdle()
 

@@ -3,7 +3,9 @@ package com.kinetix.shop.viewmodels.auth
 import com.kinetix.shop.core.failure.ChallengeSpentFailure
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.fakes.FakeAuthRepository
-import com.kinetix.shop.state.common.FormErrorUiState
+import com.kinetix.shop.services.auth.InMemoryMfaChallengeStore
+import com.kinetix.shop.state.common.FormChallengeExpiredUiState
+import com.kinetix.shop.state.common.FormIdleUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -13,7 +15,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -32,25 +34,35 @@ class TwoFactorVerifyViewModelTest {
     }
 
     @Test
-    fun invokesOnChallengeExpiredWhenChallengeTokenIsSpent() = runTest(testDispatcher) {
+    fun emitsChallengeExpiredAndClearsStoreWhenChallengeTokenIsSpent() = runTest(testDispatcher) {
         val failure = ChallengeSpentFailure(
             code = "CHALLENGE_SPENT",
         )
         val repository = FakeAuthRepository().apply {
             verifyTwoFactorResult = Err(failure)
         }
-        val viewModel = TwoFactorVerifyViewModel(repository)
-        var challengeExpiredCalled = false
+        val challengeStore = InMemoryMfaChallengeStore().apply {
+            store("chal-spent")
+        }
+        val viewModel = TwoFactorVerifyViewModel(repository, challengeStore)
 
-        viewModel.verify(
-            challengeToken = "chal-spent",
-            code = "123456",
-            onVerified = {},
-            onChallengeExpired = { challengeExpiredCalled = true },
-        )
+        viewModel.verify(code = "123456")
         advanceUntilIdle()
 
-        assertTrue(challengeExpiredCalled)
-        assertEquals(FormErrorUiState(failure), viewModel.uiState.value)
+        assertEquals(FormChallengeExpiredUiState, viewModel.uiState.value)
+        assertNull(challengeStore.peek())
+
+        viewModel.consumeNavigationEvent()
+        assertEquals(FormIdleUiState, viewModel.uiState.value)
+    }
+
+    @Test
+    fun startsInChallengeExpiredStateWhenInMemoryTokenIsMissingAfterProcessDeath() = runTest(testDispatcher) {
+        val viewModel = TwoFactorVerifyViewModel(
+            authRepository = FakeAuthRepository(),
+            mfaChallengeStore = InMemoryMfaChallengeStore(),
+        )
+
+        assertEquals(FormChallengeExpiredUiState, viewModel.uiState.value)
     }
 }

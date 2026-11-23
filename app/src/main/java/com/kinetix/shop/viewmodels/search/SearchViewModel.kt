@@ -1,5 +1,6 @@
 package com.kinetix.shop.viewmodels.search
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kinetix.shop.core.config.NetworkPolicy
@@ -24,7 +25,15 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val searchRepository: SearchRepository,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+    constructor(
+        searchRepository: SearchRepository,
+    ) : this(
+        searchRepository = searchRepository,
+        savedStateHandle = SavedStateHandle(),
+    )
+
     private val mutableState = MutableStateFlow<SearchUiState>(SearchIdleUiState)
     val uiState: StateFlow<SearchUiState> = mutableState.asStateFlow()
 
@@ -36,6 +45,19 @@ class SearchViewModel @Inject constructor(
 
     private var suggestJob: Job? = null
     private var searchJob: Job? = null
+
+    init {
+        val initialQuery = savedStateHandle.get<String>("initialQuery").orEmpty()
+        val initialCategory = savedStateHandle.get<String>("initialCategorySlug")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { CategorySlug(it) }
+        if (initialQuery.isNotBlank() || initialCategory != null) {
+            executeSearch(
+                query = initialQuery,
+                categorySlug = initialCategory,
+            )
+        }
+    }
 
     fun updateQueryAndSuggest(
         query: String,

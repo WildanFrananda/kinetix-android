@@ -11,6 +11,7 @@ import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.time.DelayCountdownTimer
 import com.kinetix.shop.repositories.auth.AuthRepository
 import com.kinetix.shop.state.common.AsyncFormUiState
+import com.kinetix.shop.state.common.FormAuthenticatedUiState
 import com.kinetix.shop.state.common.FormDelayedUiState
 import com.kinetix.shop.state.common.FormErrorUiState
 import com.kinetix.shop.state.common.FormIdleUiState
@@ -33,7 +34,6 @@ class RegisterViewModel @Inject constructor(
     fun register(
         email: String,
         password: String,
-        onRegistered: () -> Unit,
     ) {
         val current = mutableState.value
         if (current is FormSubmittingUiState || current is FormDelayedUiState) {
@@ -56,8 +56,7 @@ class RegisterViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = authRepository.register(email.trim(), password)) {
                 is Ok -> {
-                    mutableState.value = FormIdleUiState
-                    onRegistered()
+                    mutableState.value = FormAuthenticatedUiState
                 }
                 is Err -> {
                     val failure = result.failure
@@ -76,6 +75,12 @@ class RegisterViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    fun consumeNavigationEvent() {
+        if (mutableState.value is FormAuthenticatedUiState) {
+            mutableState.value = FormIdleUiState
         }
     }
 

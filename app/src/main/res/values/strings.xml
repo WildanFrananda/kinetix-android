@@ -12,6 +12,8 @@
     <string name="config_error_reason_has_path">%1$s must not contain a path</string>
     <string name="config_error_reason_has_query_or_fragment">%1$s must not contain query or fragment parameters</string>
     <string name="config_error_reason_generic">Invalid endpoint configuration</string>
+    <string name="force_update_title">Update Required</string>
+    <string name="force_update_message">A newer version of Kinetix is required to continue. Please update the app and try again.</string>
 
     <string name="nav_home">Home</string>
     <string name="nav_search">Search</string>

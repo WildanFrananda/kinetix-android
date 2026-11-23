@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kinetix.shop.R
+import com.kinetix.shop.core.config.ImageUrlSanitizer
 import com.kinetix.shop.core.format.LocaleFormatter
 import com.kinetix.shop.models.catalog.ProductSummary
 import com.kinetix.shop.models.catalog.StockStatus
@@ -40,6 +41,19 @@ fun ProductSummaryCard(
         Column(
             modifier = Modifier.padding(16.dp),
         ) {
+            val safeImageUrl = ImageUrlSanitizer.sanitizeHttpsUrl(item.imageUrl)
+            if (safeImageUrl != null) {
+                ProductImageBox(
+                    imageUrl = safeImageUrl,
+                    contentDescription = item.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                )
+                Spacer(
+                    modifier = Modifier.height(10.dp),
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

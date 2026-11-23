@@ -7,8 +7,6 @@ import kotlinx.serialization.Serializable
 data class ProductDetailRoute(
     val sku: String,
 ) : AppRoute {
-    override val requiresAuthentication: Boolean = false
-
     fun toProductSku(): ProductSku {
         return ProductSku(sku)
     }

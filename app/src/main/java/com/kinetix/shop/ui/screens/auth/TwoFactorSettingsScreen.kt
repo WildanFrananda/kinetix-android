@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -19,10 +21,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,8 +49,8 @@ fun TwoFactorSettingsScreen(
     viewModel: TwoFactorSettingsViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var password by rememberSaveable { mutableStateOf("") }
-    var totpCode by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var totpCode by remember { mutableStateOf("") }
 
     val controlsEnabled =
         state !is TwoFactorSettingsSubmittingUiState && state !is TwoFactorSettingsDelayedUiState
@@ -52,6 +59,7 @@ fun TwoFactorSettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .imePadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -73,7 +81,14 @@ fun TwoFactorSettingsScreen(
             label = { Text(text = stringResource(R.string.field_account_password)) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                autoCorrectEnabled = false,
+                imeAction = ImeAction.Next,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentType = ContentType.Password },
         )
 
         OutlinedTextField(
@@ -84,7 +99,14 @@ fun TwoFactorSettingsScreen(
             enabled = controlsEnabled,
             label = { Text(text = stringResource(R.string.field_authenticator_code)) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.NumberPassword,
+                autoCorrectEnabled = false,
+                imeAction = ImeAction.Done,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentType = ContentType.SmsOtpCode },
         )
 
         when (val current = state) {
