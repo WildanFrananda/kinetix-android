@@ -1,5 +1,6 @@
 package com.kinetix.shop.viewmodels.auth
 
+import android.annotation.SuppressLint
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kinetix.shop.core.config.NetworkPolicy
@@ -84,6 +85,7 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
+    @SuppressLint("EmptySuperCall")
     override fun onCleared() {
         countdownTimer.cancel()
         super.onCleared()

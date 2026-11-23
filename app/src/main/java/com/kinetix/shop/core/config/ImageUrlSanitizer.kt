@@ -4,6 +4,8 @@ import java.net.URI
 import java.net.URISyntaxException
 
 object ImageUrlSanitizer {
+    private val httpsSchemePrefixRegex = Regex("^[hH][tT][tT][pP][sS]://")
+
     fun sanitizeHttpsUrl(
         rawUrl: String?,
     ): String? {
@@ -28,6 +30,6 @@ object ImageUrlSanitizer {
             return null
         }
 
-        return trimmed
+        return trimmed.replaceFirst(httpsSchemePrefixRegex, "https://")
     }
 }

@@ -18,7 +18,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,27 +48,11 @@ import com.kinetix.shop.viewmodels.auth.SignInViewModel
 @Composable
 fun SignInScreen(
     viewModel: SignInViewModel,
-    onAuthenticated: () -> Unit,
-    onMfaChallenge: () -> Unit,
     onNavigateToRegister: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-
-    LaunchedEffect(state) {
-        when (state) {
-            is FormAuthenticatedUiState -> {
-                viewModel.consumeNavigationEvent()
-                onAuthenticated()
-            }
-            is FormMfaChallengeUiState -> {
-                viewModel.consumeNavigationEvent()
-                onMfaChallenge()
-            }
-            else -> Unit
-        }
-    }
 
     val controlsEnabled = state is FormIdleUiState || state is FormErrorUiState
 

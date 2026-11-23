@@ -8,6 +8,7 @@ import com.kinetix.shop.repositories.auth.SessionRepository
 import com.kinetix.shop.services.config.FeatureFlagProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +25,8 @@ class AppRootViewModel @Inject constructor(
         featureFlagProvider.isForceUpdateRequired(BuildConfig.VERSION_CODE)
     )
     val forceUpdateRequired: StateFlow<Boolean> = mutableForceUpdateRequired.asStateFlow()
+
+    private var refreshJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -43,7 +46,10 @@ class AppRootViewModel @Inject constructor(
     }
 
     private fun refreshFlags() {
-        viewModelScope.launch {
+        if (refreshJob?.isActive == true) {
+            return
+        }
+        refreshJob = viewModelScope.launch {
             featureFlagProvider.refreshFlags()
             mutableForceUpdateRequired.value = featureFlagProvider.isForceUpdateRequired(
                 BuildConfig.VERSION_CODE,

@@ -114,7 +114,7 @@ History is kept; newest last. Corrections made by the review are marked.
 
 ### 0.4 Owed
 
-- **By the user:** AND-D1 (Hilt against the estate's no-container rule), AND-D2 (Gradle on the host against everything-in-Docker), AND-D3 (which Firebase products ship, consent, a user id), AND-D12 (two accents and a shape scale), AND-D13 (the second test layer), AND-D14 (warnings as errors), AND-D16 (the map), AND-D17 (`CLAUDE.md`); overruling AND-D6, AND-D7 or AND-D8 if wanted; registering `com.kinetix.shop` in the Firebase project notification sends through.
+- **By the user:** AND-D1 (Hilt against the estate's no-container rule), AND-D2 (Gradle on the host against everything-in-Docker), AND-D3 (which Firebase products ship, consent, a user id), AND-D13 (the second test layer), AND-D14 (warnings as errors), AND-D16 (the map), AND-D17 (`CLAUDE.md`); overruling AND-D6, AND-D7 or AND-D8 if wanted; registering `com.kinetix.shop` in the Firebase project notification sends through.
 - **By owning services:** §7.
 - **In the workspace:** a `kinetix-android` row in `CONTEXT.md` §2.3 and §2.4.
 
@@ -322,7 +322,7 @@ Whether background work may renew an expired session is AND-D8.
 - **Never logged or sent to a third party:** tokens, email, phone, address, names, request bodies, identifiers inside paths. Logged: the route template, the status, the request id, the failure type. **Today:** `DefaultPushMessageHandler` still logs the challenge id (Phase 4).
 - **Crashes, analytics and flags are interfaces with two production implementations each**: local ones (log-based crash reporter and analytics, bundled flag defaults), which are the behaviour of a build without Firebase and not fakes, and the Firebase ones. **Today:** no local telemetry or flag adapter exists; Hilt binds the Firebase classes directly (`CoreBindingsModule`), which do nothing without Firebase, and flags are constants in Kotlin.
 - **Flags.** The keys in `res/xml/remote_config_defaults.xml` are shared with `kinetix-ios`: `checkout_enabled`, `wallet_topup_enabled`, `live_tracking_enabled`, `outbox_sync_enabled`; `minimum_supported_version_code` and `force_update_enabled` are per platform. A flag is fetched at start and on return to the foreground, and read by the screen it governs, which has a state for "disabled". **No backend kill switch exists** (it is the edge's case X8, planned), so the app's flag is the only switch and cannot reach a build that has not fetched it. **Today:** nothing fetches, and only the outbox reads one flag.
-- **Privacy.** Until AND-D3 is ruled: the advertising-id permissions Firebase Analytics brings in (`AD_ID`, `ACCESS_ADSERVICES_AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`) are removed in the manifest, advertising-id collection is disabled, and no user id is set on analytics or crash reports. **Today:** the three advertising-id permissions are in the merged manifest and collection is not disabled.
+- **Privacy.** Until AND-D3 is ruled: the advertising-id permissions Firebase Analytics brings in (`AD_ID`, `ACCESS_ADSERVICES_AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`) are removed in the manifest, advertising-id collection is disabled, and no user id is set on analytics or crash reports. Completed in Phase R10 and verified against the merged manifest (`PrivacyManifestTest`).
 
 ### 1.14 Security posture
 
@@ -338,10 +338,10 @@ Whether background work may renew an expired session is AND-D8.
 
 - **Brand palette and mark follow `kinetix-docs`** (`AND-D12`, aligned 2026-11-23 with `IOS-D8` amended 2026-11-20): dark-only tokens read from `kinetix-docs/src/styles/kx-tokens.css` (warm dark `#131210` canvas, `#191815` / `#1F1D1A` surfaces, `#34312C` / `#4A463F` rules, `#F6F2EA` / `#CFC9BD` / `#969083` warm text scale, `#F0742F` / `#3B1E0F` / `#FFC9A6` terracotta accent scale, `#74A9D6` / `#74C29D` semantic lanes) and brand mark matching `kinetix-docs/src/assets/kinetix-mark-dark.svg`. **Today (until Phase R13):** `ui/theme/KinetixPalette.kt` still carries the legacy Phase 0–2 Obsidian (`#0A0D12`) / Electric Volt (`#C6FF00`) / Cyan Pulse (`#00E5FF`) tokens.
 - Screens read the colour scheme and the typography, never a literal. **Today:** twelve colour roles are set and the rest keep Material's baseline, so chips and the navigation indicator show colours that are not tokens; no shape scale is configured, so buttons are Material's fully rounded default; the hairline token is drawn only as the resting border of the 13 outlined text fields (`outline` role), and no card, button or divider draws it; the platform theme is a light one.
-- The estate's taste: no gradients, no glow, no shadows for decoration, no pill buttons, hairline borders. Two accents and the default pill shape are departures the user has not been asked about (AND-D12).
+- The estate's taste: no gradients, no glow, no shadows for decoration, no pill buttons, hairline borders. The user ruled on AND-D12 (2026-11-23) to adopt the `kinetix-docs` palette, brand mark, and shape scale in Phase R13.
 - Every interactive element has a 48 dp target and a content description; state is never conveyed by colour alone; text scales with the system font size without truncating a price.
 - **Buyer copy is multilingual** (AND-D10): English in `res/values/strings.xml`, Indonesian in `res/values-in/`, with key parity. Counts use plurals; amounts and dates are formatted for the locale; the app declares a locale configuration so it appears in the system's per-app language settings. Kotlin, identifiers, tests and this file stay English.
-- Product images are fetched from `image_url` by one image loader (a decision owed with Phase R); an empty or non-`https` value is no image. **Today:** the catalogue shows no image at all.
+- Product images are fetched from `image_url` by Coil 3 (`coil-compose` + `coil-network-okhttp`, integrated in Phase R9); an empty or non-`https` value is treated as no image via `ImageUrlSanitizer`.
 
 ### 1.16 Performance
 

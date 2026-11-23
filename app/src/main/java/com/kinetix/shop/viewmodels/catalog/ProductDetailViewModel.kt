@@ -1,5 +1,6 @@
 package com.kinetix.shop.viewmodels.catalog
 
+import android.annotation.SuppressLint
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -30,6 +31,7 @@ class ProductDetailViewModel @Inject constructor(
     private val reviewRepository: ReviewRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+    @SuppressLint("VisibleForTests")
     constructor(
         catalogRepository: CatalogRepository,
         pricingRepository: PricingRepository,
@@ -97,6 +99,7 @@ class ProductDetailViewModel @Inject constructor(
     ) {
         activeSku = sku
         loadJob?.cancel()
+        reviewsJob?.cancel()
         mutableState.value = ProductDetailLoadingUiState
         loadJob = viewModelScope.launch {
             val product = when (val detailResult = catalogRepository.getProductDetail(sku)) {

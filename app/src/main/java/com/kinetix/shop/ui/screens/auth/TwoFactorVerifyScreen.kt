@@ -18,7 +18,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,25 +46,9 @@ import com.kinetix.shop.viewmodels.auth.TwoFactorVerifyViewModel
 @Composable
 fun TwoFactorVerifyScreen(
     viewModel: TwoFactorVerifyViewModel,
-    onVerified: () -> Unit,
-    onChallengeExpired: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var code by remember { mutableStateOf("") }
-
-    LaunchedEffect(state) {
-        when (state) {
-            is FormAuthenticatedUiState -> {
-                viewModel.consumeNavigationEvent()
-                onVerified()
-            }
-            is FormChallengeExpiredUiState -> {
-                viewModel.consumeNavigationEvent()
-                onChallengeExpired()
-            }
-            else -> Unit
-        }
-    }
 
     val controlsEnabled = state is FormIdleUiState || state is FormErrorUiState
 

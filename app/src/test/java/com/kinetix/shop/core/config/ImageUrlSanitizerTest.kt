@@ -6,10 +6,18 @@ import org.junit.Test
 
 class ImageUrlSanitizerTest {
     @Test
-    fun acceptsValidHttpsUrlsAndRejectsBlankHttpOrMalformedUrls() {
+    fun acceptsValidHttpsUrlsNormalizesSchemeAndRejectsBlankHttpOrMalformedUrls() {
         assertEquals(
             "https://cdn.kinetix.test/images/mouse.png",
             ImageUrlSanitizer.sanitizeHttpsUrl("  https://cdn.kinetix.test/images/mouse.png  "),
+        )
+        assertEquals(
+            "https://cdn.kinetix.test/Images/Mouse.PNG?Token=AbC",
+            ImageUrlSanitizer.sanitizeHttpsUrl("HTTPS://cdn.kinetix.test/Images/Mouse.PNG?Token=AbC"),
+        )
+        assertEquals(
+            "https://cdn.kinetix.test/Items/KeyBoard.webp",
+            ImageUrlSanitizer.sanitizeHttpsUrl("HtTpS://cdn.kinetix.test/Items/KeyBoard.webp"),
         )
         assertNull(ImageUrlSanitizer.sanitizeHttpsUrl(null))
         assertNull(ImageUrlSanitizer.sanitizeHttpsUrl(""))

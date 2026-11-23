@@ -1,5 +1,6 @@
 package com.kinetix.shop.viewmodels.search
 
+import android.annotation.SuppressLint
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,12 +22,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val searchRepository: SearchRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+    @SuppressLint("VisibleForTests")
     constructor(
         searchRepository: SearchRepository,
     ) : this(
@@ -65,7 +68,7 @@ class SearchViewModel @Inject constructor(
         currentQuery = query
         suggestJob?.cancel()
         suggestJob = viewModelScope.launch {
-            delay(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS)
+            delay(NetworkPolicy.SEARCH_DEBOUNCE_MILLIS.milliseconds)
             val suggestions = when (
                 val suggestResult = searchRepository.suggest(
                     query = query,

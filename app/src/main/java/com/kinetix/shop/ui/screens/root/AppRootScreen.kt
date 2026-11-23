@@ -28,7 +28,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,6 +58,9 @@ import com.kinetix.shop.routes.SearchRoute
 import com.kinetix.shop.routes.SignInRoute
 import com.kinetix.shop.routes.TwoFactorSettingsRoute
 import com.kinetix.shop.routes.TwoFactorVerifyRoute
+import com.kinetix.shop.state.common.FormAuthenticatedUiState
+import com.kinetix.shop.state.common.FormChallengeExpiredUiState
+import com.kinetix.shop.state.common.FormMfaChallengeUiState
 import com.kinetix.shop.ui.screens.auth.RegisterScreen
 import com.kinetix.shop.ui.screens.auth.SignInScreen
 import com.kinetix.shop.ui.screens.auth.TwoFactorSettingsScreen
@@ -91,15 +93,10 @@ fun AppRootScreen(
     var pendingAuthTarget by rememberSaveable { mutableStateOf<String?>(null) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    var hasResumedOnce by remember { mutableStateOf(false) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                if (hasResumedOnce) {
-                    viewModel.onAppForegrounded()
-                } else {
-                    hasResumedOnce = true
-                }
+                viewModel.onAppForegrounded()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -293,14 +290,24 @@ fun AppRootScreen(
                 }
                 composable<SignInRoute> {
                     val signInViewModel: SignInViewModel = hiltViewModel()
+                    val signInState by signInViewModel.uiState.collectAsStateWithLifecycle()
+                    LaunchedEffect(signInState) {
+                        when (signInState) {
+                            is FormAuthenticatedUiState -> {
+                                handleAuthenticated()
+                                signInViewModel.consumeNavigationEvent()
+                            }
+                            is FormMfaChallengeUiState -> {
+                                navController.navigate(TwoFactorVerifyRoute) {
+                                    launchSingleTop = true
+                                }
+                                signInViewModel.consumeNavigationEvent()
+                            }
+                            else -> Unit
+                        }
+                    }
                     SignInScreen(
                         viewModel = signInViewModel,
-                        onAuthenticated = { handleAuthenticated() },
-                        onMfaChallenge = {
-                            navController.navigate(TwoFactorVerifyRoute) {
-                                launchSingleTop = true
-                            }
-                        },
                         onNavigateToRegister = {
                             navController.navigate(RegisterRoute) {
                                 launchSingleTop = true
@@ -310,9 +317,15 @@ fun AppRootScreen(
                 }
                 composable<RegisterRoute> {
                     val registerViewModel: RegisterViewModel = hiltViewModel()
+                    val registerState by registerViewModel.uiState.collectAsStateWithLifecycle()
+                    LaunchedEffect(registerState) {
+                        if (registerState is FormAuthenticatedUiState) {
+                            handleAuthenticated()
+                            registerViewModel.consumeNavigationEvent()
+                        }
+                    }
                     RegisterScreen(
                         viewModel = registerViewModel,
-                        onRegistered = { handleAuthenticated() },
                         onNavigateToSignIn = {
                             navController.popBackStack<SignInRoute>(inclusive = false)
                         },
@@ -320,12 +333,22 @@ fun AppRootScreen(
                 }
                 composable<TwoFactorVerifyRoute> {
                     val twoFactorVerifyViewModel: TwoFactorVerifyViewModel = hiltViewModel()
+                    val verifyState by twoFactorVerifyViewModel.uiState.collectAsStateWithLifecycle()
+                    LaunchedEffect(verifyState) {
+                        when (verifyState) {
+                            is FormAuthenticatedUiState -> {
+                                handleAuthenticated()
+                                twoFactorVerifyViewModel.consumeNavigationEvent()
+                            }
+                            is FormChallengeExpiredUiState -> {
+                                navController.popBackStack<SignInRoute>(inclusive = false)
+                                twoFactorVerifyViewModel.consumeNavigationEvent()
+                            }
+                            else -> Unit
+                        }
+                    }
                     TwoFactorVerifyScreen(
                         viewModel = twoFactorVerifyViewModel,
-                        onVerified = { handleAuthenticated() },
-                        onChallengeExpired = {
-                            navController.popBackStack<SignInRoute>(inclusive = false)
-                        },
                     )
                 }
                 composable<TwoFactorSettingsRoute> {

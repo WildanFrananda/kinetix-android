@@ -2,6 +2,8 @@ package com.kinetix.shop.viewmodels.root
 
 import com.kinetix.shop.fakes.FakeFeatureFlagProvider
 import com.kinetix.shop.fakes.FakeSessionRepository
+import com.kinetix.shop.services.config.FeatureFlagProvider
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -41,6 +43,30 @@ class AppRootViewModelTest {
 
         featureFlags.forceUpdateRequired = true
         viewModel.onAppForegrounded()
+        advanceUntilIdle()
+        assertTrue(viewModel.forceUpdateRequired.value)
+    }
+
+    @Test
+    fun appliesActivatedForceUpdateImmediatelyBeforeDelayedRefreshCompletes() = runTest(testDispatcher) {
+        val refreshGate = CompletableDeferred<Boolean>()
+        val activatedProvider = object : FeatureFlagProvider {
+            override fun isForceUpdateRequired(currentVersionCode: Int): Boolean = true
+            override fun isCheckoutEnabled(): Boolean = true
+            override fun isWalletTopUpEnabled(): Boolean = true
+            override fun isLiveTrackingEnabled(): Boolean = true
+            override fun isOutboxSyncEnabled(): Boolean = true
+            override suspend fun refreshFlags(): Boolean = refreshGate.await()
+        }
+
+        val viewModel = AppRootViewModel(
+            sessionRepository = FakeSessionRepository(),
+            featureFlagProvider = activatedProvider,
+        )
+
+        assertTrue(viewModel.forceUpdateRequired.value)
+
+        refreshGate.complete(true)
         advanceUntilIdle()
         assertTrue(viewModel.forceUpdateRequired.value)
     }
