@@ -408,4 +408,67 @@ class SessionRepositoryImplTest {
         assertEquals(renewedSession, repository.currentSession.value)
         appScope.cancel()
     }
+
+    @Test
+    fun restoreSessionRenewsOnInitialMe401AndSucceedsWhenSecondMeReturns200() = runTest {
+        val appScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
+        val clock = FakeClock(currentEpochSeconds = 1_700_000_000L)
+        val initialSession = StoredSession(
+            accessToken = "acc-expired",
+            refreshToken = "ref-1",
+            expiresAtEpochSeconds = 1_700_000_900L,
+            accountId = AccountId(10L),
+            principalId = PrincipalId("usr-10"),
+            email = "buyer@kinetix.test",
+            role = "customer",
+        )
+        val renewedSession = initialSession.copy(
+            accessToken = "acc-fresh",
+            refreshToken = "ref-2",
+        )
+        val tokenStore = FakeTokenStore(current = initialSession)
+        var meCalls = 0
+        val apiService = FakeIdentityApiService().apply {
+            meHandler = { bearer ->
+                meCalls += 1
+                if (bearer == "Bearer acc-expired") {
+                    Response.error(
+                        401,
+                        """{"message":"Unauthorized"}"""
+                            .toResponseBody("application/json".toMediaType()),
+                    )
+                } else {
+                    Response.success(
+                        CurrentSessionResponseDto(
+                            principalId = "usr-10",
+                            userId = 10L,
+                            email = "buyer@kinetix.test",
+                            role = "courier",
+                            expiresAt = "2023-11-14T22:28:20Z",
+                        )
+                    )
+                }
+            }
+        }
+        val renewer = FakeSessionRenewer(nextResult = Ok(renewedSession))
+        val repository = SessionRepositoryImpl(
+            apiService = apiService,
+            safeApiCaller = safeApiCaller,
+            tokenStore = tokenStore,
+            sessionRenewer = renewer,
+            profileCacheStore = FakeProfileCacheStore(),
+            clock = clock,
+            crashReporter = FakeCrashReporter(),
+            applicationScope = appScope,
+        )
+
+        val result = repository.restoreSession()
+
+        assertTrue(result is Ok)
+        assertEquals(2, meCalls)
+        assertEquals(1, renewer.renewCalls)
+        assertTrue(repository.sessionState.value is SessionSignedIn)
+        assertEquals("courier", repository.currentSession.value?.role)
+        appScope.cancel()
+    }
 }

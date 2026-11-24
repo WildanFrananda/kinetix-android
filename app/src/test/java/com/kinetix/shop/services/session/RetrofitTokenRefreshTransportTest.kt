@@ -67,6 +67,11 @@ class RetrofitTokenRefreshTransportTest {
         }
         assertTrue(transport.refresh("t2") is RefreshTransportRefused)
 
+        executor.handler = {
+            RefreshWireResponse(400, """{"error":"INVALID_REQUEST","message":"Bad refresh token"}""", null, "r2b", true)
+        }
+        assertTrue(transport.refresh("t2b") is RefreshTransportRefused)
+
         val clientProofResponses = listOf(
             400 to "UNKNOWN_CLIENT",
             400 to "CLIENT_REQUIRED",

@@ -53,14 +53,11 @@ class ApiErrorParser @Inject constructor(
     fun isServiceJsonError(
         dto: ApiErrorResponseDto?,
     ): Boolean {
-        if (dto == null) {
-            return false
-        }
-
-        return !dto.error.isNullOrBlank() ||
-            !dto.code.isNullOrBlank() ||
-            !dto.title.isNullOrBlank() ||
-            dto.status != null
+        return dto != null && (!dto.error.isNullOrBlank() ||
+                !dto.code.isNullOrBlank() ||
+                !dto.title.isNullOrBlank() ||
+                dto.status != null ||
+                dto.statusCode != null)
     }
 
     fun extractMessage(
