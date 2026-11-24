@@ -38,8 +38,23 @@ class TwoFactorRepositoryImpl @Inject constructor(
                 },
                 onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
                     val parsed = errorParser.parse(rawErrorBody)
+                    val errorCode = errorParser.extractErrorCode(parsed)
+                    val message = errorParser.extractMessage(parsed).orEmpty()
                     when (statusCode) {
-                        400, 401 -> WrongPasswordFailure()
+                        400 -> {
+                            if (errorCode == "PASSWORD_REQUIRED" || message.contains("password", ignoreCase = true)) {
+                                WrongPasswordFailure()
+                            } else {
+                                null
+                            }
+                        }
+                        401 -> {
+                            if (errorParser.isServiceJsonError(parsed)) {
+                                WrongPasswordFailure()
+                            } else {
+                                null
+                            }
+                        }
                         429 -> SignInDelayedFailure(
                             parsed?.retryAfterSeconds
                                 ?: retryAfterSeconds
@@ -78,13 +93,21 @@ class TwoFactorRepositoryImpl @Inject constructor(
                 },
                 onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
                     val parsed = errorParser.parse(rawErrorBody)
+                    val errorCode = errorParser.extractErrorCode(parsed)
                     val message = errorParser.extractMessage(parsed).orEmpty()
                     when (statusCode) {
-                        400, 401 -> {
-                            if (message.contains("password", ignoreCase = true)) {
+                        400 -> {
+                            if (errorCode == "PASSWORD_REQUIRED" || message.contains("password", ignoreCase = true)) {
                                 WrongPasswordFailure()
                             } else {
-                                WrongTwoFactorCodeFailure()
+                                null
+                            }
+                        }
+                        401 -> {
+                            if (errorParser.isServiceJsonError(parsed)) {
+                                WrongPasswordFailure()
+                            } else {
+                                null
                             }
                         }
                         422 -> WrongTwoFactorCodeFailure()
@@ -121,13 +144,21 @@ class TwoFactorRepositoryImpl @Inject constructor(
                 },
                 onErrorOverride = { statusCode, rawErrorBody, retryAfterSeconds ->
                     val parsed = errorParser.parse(rawErrorBody)
+                    val errorCode = errorParser.extractErrorCode(parsed)
                     val message = errorParser.extractMessage(parsed).orEmpty()
                     when (statusCode) {
-                        400, 401 -> {
-                            if (message.contains("password", ignoreCase = true)) {
+                        400 -> {
+                            if (errorCode == "PASSWORD_REQUIRED" || message.contains("password", ignoreCase = true)) {
                                 WrongPasswordFailure()
                             } else {
-                                WrongTwoFactorCodeFailure()
+                                null
+                            }
+                        }
+                        401 -> {
+                            if (errorParser.isServiceJsonError(parsed)) {
+                                WrongPasswordFailure()
+                            } else {
+                                null
                             }
                         }
                         422 -> WrongTwoFactorCodeFailure()

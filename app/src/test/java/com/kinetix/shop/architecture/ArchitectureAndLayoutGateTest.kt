@@ -85,7 +85,27 @@ class ArchitectureAndLayoutGateTest {
         assertTrue(
             findFunctionTypeParameters(
                 """
-                class GoodViewModel {
+                class BadPrimaryConstructorViewModel(
+                    val onAuthenticated: () -> Unit,
+                )
+                """.trimIndent()
+            ).isNotEmpty()
+        )
+        assertTrue(
+            findFunctionTypeParameters(
+                """
+                class BadSecondaryConstructorViewModel {
+                    constructor(onDone: () -> Unit)
+                }
+                """.trimIndent()
+            ).isNotEmpty()
+        )
+        assertTrue(
+            findFunctionTypeParameters(
+                """
+                class GoodViewModel(
+                    private val savedStateHandle: SavedStateHandle,
+                ) {
                     fun signIn(
                         email: String,
                         password: String,
@@ -95,15 +115,77 @@ class ArchitectureAndLayoutGateTest {
             ).isEmpty()
         )
 
-        assertTrue(containsDisplayTextFailureLiteral("""UnauthorizedFailure("Invalid password")"""))
-        assertTrue(containsDisplayTextFailureLiteral("""NetworkFailure("no route to host")"""))
-        assertFalse(containsDisplayTextFailureLiteral("""UnauthorizedFailure(code = "NOT_SIGNED_IN")"""))
-        assertFalse(containsDisplayTextFailureLiteral("""NetworkFailure()"""))
+        assertTrue(
+            findDisallowedDestructiveMigrations(
+                relPath = "di/CoreModule.kt",
+                sourceText = """
+                object CoreModule {
+                    fun provideKinetixCacheDatabase(): KinetixCacheDatabase {
+                        return Room.databaseBuilder(ctx, KinetixCacheDatabase::class.java, "cache")
+                            .fallbackToDestructiveMigration(dropAllTables = true)
+                            .build()
+                    }
+                }
+                """.trimIndent(),
+            ).isEmpty()
+        )
+        assertTrue(
+            findDisallowedDestructiveMigrations(
+                relPath = "di/CoreModule.kt",
+                sourceText = """
+                object CoreModule {
+                    fun provideKinetixCacheDatabase(): KinetixCacheDatabase {
+                        return Room.databaseBuilder(ctx, KinetixCacheDatabase::class.java, "cache")
+                            .fallbackToDestructiveMigration(dropAllTables = true)
+                            .build()
+                    }
 
-        assertTrue(containsSaveableSecret("""var password by rememberSaveable { mutableStateOf("") }"""))
-        assertTrue(containsSaveableSecret("""var totpCode by rememberSaveable { mutableStateOf("") }"""))
-        assertFalse(containsSaveableSecret("""var email by rememberSaveable { mutableStateOf("") }"""))
-        assertFalse(containsSaveableSecret("""var password by remember { mutableStateOf("") }"""))
+                    private fun provideKinetixLedgerDatabase(): KinetixLedgerDatabase {
+                        return Room.databaseBuilder(ctx, KinetixLedgerDatabase::class.java, "ledger")
+                            .fallbackToDestructiveMigration(dropAllTables = true)
+                            .build()
+                    }
+                }
+                """.trimIndent(),
+            ).isNotEmpty()
+        )
+
+        assertTrue(findDisplayTextFailureLiterals("""UnauthorizedFailure("Invalid password")""").isNotEmpty())
+        assertTrue(findDisplayTextFailureLiterals("""NetworkFailure("no route to host")""").isNotEmpty())
+        assertTrue(
+            findDisplayTextFailureLiterals(
+                """
+                UnauthorizedFailure(
+                    "Session expired",
+                )
+                """.trimIndent()
+            ).isNotEmpty()
+        )
+        assertTrue(findDisplayTextFailureLiterals("""UnauthorizedFailure(code = "NOT_SIGNED_IN")""").isEmpty())
+        assertTrue(
+            findDisplayTextFailureLiterals(
+                """
+                UnauthorizedFailure(
+                    code = "NOT_SIGNED_IN",
+                )
+                """.trimIndent()
+            ).isEmpty()
+        )
+        assertTrue(findDisplayTextFailureLiterals("""NetworkFailure()""").isEmpty())
+
+        assertTrue(findSaveableSecrets("""var password by rememberSaveable { mutableStateOf("") }""").isNotEmpty())
+        assertTrue(
+            findSaveableSecrets(
+                """
+                var password by
+                    rememberSaveable { mutableStateOf("") }
+                """.trimIndent()
+            ).isNotEmpty()
+        )
+        assertTrue(findSaveableSecrets("""var totpCode by rememberSaveable { mutableStateOf("") }""").isNotEmpty())
+        assertTrue(findSaveableSecrets("""var email by rememberSaveable { mutableStateOf("") }""").isEmpty())
+        assertTrue(findSaveableSecrets("""var postalCode by rememberSaveable { mutableStateOf("") }""").isEmpty())
+        assertTrue(findSaveableSecrets("""var password by remember { mutableStateOf("") }""").isEmpty())
     }
 
     @Test
@@ -239,24 +321,12 @@ class ArchitectureAndLayoutGateTest {
         val violations = mutableListOf<String>()
         allKotlinFiles(mainJavaRoot).forEach { file ->
             val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
-            val lines = file.readLines()
-            var currentFunctionName: String? = null
-            val funHeaderRegex = Regex("""^\s*fun\s+([A-Za-z0-9_]+)\s*\(""")
-            lines.forEachIndexed { idx, line ->
-                val match = funHeaderRegex.find(line)
-                if (match != null) {
-                    currentFunctionName = match.groupValues[1]
-                }
-                if (line.contains("fallbackToDestructiveMigration")) {
-                    val isCacheBuilder = relPath == "di/CoreModule.kt" &&
-                        currentFunctionName == "provideKinetixCacheDatabase"
-                    if (!isCacheBuilder) {
-                        violations.add(
-                            "$relPath:${idx + 1} uses fallbackToDestructiveMigration outside provideKinetixCacheDatabase"
-                        )
-                    }
-                }
-            }
+            violations.addAll(
+                findDisallowedDestructiveMigrations(
+                    relPath = relPath,
+                    sourceText = file.readText(),
+                )
+            )
         }
 
         assertTrue(
@@ -279,12 +349,18 @@ class ArchitectureAndLayoutGateTest {
             }
         }
 
+        val failureClassNames = allKotlinFiles(failureDir)
+            .map { it.nameWithoutExtension }
+            .filter { it.endsWith("Failure") }
+            .toSet()
+
         allKotlinFiles(mainJavaRoot).forEach { file ->
             val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
-            file.readLines().forEachIndexed { idx, line ->
-                if (containsDisplayTextFailureLiteral(line)) {
-                    violations.add("$relPath:${idx + 1} passes display-text string literal to a Failure")
-                }
+            findDisplayTextFailureLiterals(
+                sourceText = file.readText(),
+                failureClassNames = failureClassNames,
+            ).forEach { lineNumber ->
+                violations.add("$relPath:$lineNumber passes display-text string literal to a Failure")
             }
         }
 
@@ -300,10 +376,8 @@ class ArchitectureAndLayoutGateTest {
         val uiDir = File(mainJavaRoot, "ui")
         allKotlinFiles(uiDir).forEach { file ->
             val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
-            file.readLines().forEachIndexed { idx, line ->
-                if (containsSaveableSecret(line)) {
-                    violations.add("$relPath:${idx + 1} stores a secret in rememberSaveable")
-                }
+            findSaveableSecrets(file.readText()).forEach { lineNumber ->
+                violations.add("$relPath:$lineNumber stores a secret in rememberSaveable")
             }
         }
 
@@ -451,64 +525,195 @@ class ArchitectureAndLayoutGateTest {
         sourceText: String,
     ): List<String> {
         val violations = mutableListOf<String>()
-        val funHeaderRegex = Regex("""\bfun\s+([A-Za-z0-9_]+)\s*\(""")
-        funHeaderRegex.findAll(sourceText).forEach { match ->
-            val funName = match.groupValues[1]
-            val openParenIndex = match.range.last
-            var depth = 0
-            var closeParenIndex = -1
-            for (i in openParenIndex until sourceText.length) {
-                when (sourceText[i]) {
-                    '(' -> depth += 1
-                    ')' -> {
-                        depth -= 1
-                        if (depth == 0) {
-                            closeParenIndex = i
-                            break
-                        }
-                    }
+        val headerRegexes = listOf(
+            Regex("""\bfun\s+([A-Za-z0-9_]+)\s*\(""") to "fun",
+            Regex(
+                """\bclass\s+([A-Za-z0-9_]+)(?:\s*<[^>]*>)?(?:\s*(?:@[A-Za-z0-9_.]+\s*)*(?:public|internal|private|protected)?\s*constructor)?\s*\("""
+            ) to "class",
+            Regex("""\bconstructor\s*\(""") to "constructor",
+        )
+        val seenOpenParens = mutableSetOf<Int>()
+        headerRegexes.forEach { (regex, kind) ->
+            regex.findAll(sourceText).forEach { match ->
+                val openParenIndex = match.range.last
+                if (!seenOpenParens.add(openParenIndex)) {
+                    return@forEach
                 }
-            }
-            if (closeParenIndex > openParenIndex) {
-                val params = sourceText.substring(openParenIndex + 1, closeParenIndex)
-                if (params.contains("->")) {
-                    violations.add("fun $funName declares a function-type parameter")
+                val closeParenIndex = findMatchingCloseParen(
+                    sourceText = sourceText,
+                    openParenIndex = openParenIndex,
+                )
+                if (closeParenIndex > openParenIndex) {
+                    val params = sourceText.substring(openParenIndex + 1, closeParenIndex)
+                    if (params.contains("->")) {
+                        val name = match.groupValues.getOrNull(1).orEmpty()
+                        val label = if (name.isNotEmpty()) "$kind $name" else kind
+                        violations.add("$label declares a function-type parameter")
+                    }
                 }
             }
         }
         return violations
     }
 
-    private fun containsDisplayTextFailureLiteral(
-        line: String,
-    ): Boolean {
-        val failureCallRegex = Regex("""[A-Z][A-Za-z0-9_]*Failure\s*\(([^)]*)\)""")
-        val stringLiteralRegex = Regex(""""([^"]*)"""")
-        val machineCodeRegex = Regex("""^(?:[A-Z0-9_]+|\$\{[A-Za-z0-9_.]+\}|\$[A-Za-z0-9_]+)+$""")
-        val match = failureCallRegex.find(line) ?: return false
-        val args = match.groupValues[1]
-        return stringLiteralRegex.findAll(args).any { literalMatch ->
-            val content = literalMatch.groupValues[1]
-            content.isNotEmpty() && !machineCodeRegex.matches(content)
+    private fun findDisallowedDestructiveMigrations(
+        relPath: String,
+        sourceText: String,
+    ): List<String> {
+        val violations = mutableListOf<String>()
+        val funHeaderRegex = Regex(
+            """^\s*(?:(?:public|internal|private|protected|override|open|final|suspend|inline)\s+)*fun\s+([A-Za-z0-9_]+)\s*\("""
+        )
+        var braceDepth = 0
+        var pendingFunctionName: String? = null
+        var activeFunctionName: String? = null
+        var activeFunctionEntryDepth = -1
+        sourceText.lines().forEachIndexed { idx, line ->
+            val match = funHeaderRegex.find(line)
+            if (match != null) {
+                pendingFunctionName = match.groupValues[1]
+            }
+            if (line.contains("fallbackToDestructiveMigration")) {
+                val enclosingFunction = activeFunctionName ?: pendingFunctionName
+                val isCacheBuilder = relPath == "di/CoreModule.kt" &&
+                    enclosingFunction == "provideKinetixCacheDatabase"
+                if (!isCacheBuilder) {
+                    violations.add(
+                        "$relPath:${idx + 1} uses fallbackToDestructiveMigration outside provideKinetixCacheDatabase"
+                    )
+                }
+            }
+            var inDoubleQuote = false
+            var escaped = false
+            for (ch in line) {
+                if (escaped) {
+                    escaped = false
+                    continue
+                }
+                if (inDoubleQuote) {
+                    if (ch == '\\') {
+                        escaped = true
+                    } else if (ch == '"') {
+                        inDoubleQuote = false
+                    }
+                    continue
+                }
+                when (ch) {
+                    '"' -> inDoubleQuote = true
+                    '{' -> {
+                        if (pendingFunctionName != null && activeFunctionName == null) {
+                            activeFunctionName = pendingFunctionName
+                            activeFunctionEntryDepth = braceDepth
+                            pendingFunctionName = null
+                        }
+                        braceDepth += 1
+                    }
+                    '}' -> {
+                        braceDepth = (braceDepth - 1).coerceAtLeast(0)
+                        if (activeFunctionName != null && braceDepth <= activeFunctionEntryDepth) {
+                            activeFunctionName = null
+                            activeFunctionEntryDepth = -1
+                        }
+                    }
+                }
+            }
         }
+        return violations
     }
 
-    private fun containsSaveableSecret(
-        line: String,
-    ): Boolean {
-        if (!line.contains("rememberSaveable")) {
-            return false
+    private fun findDisplayTextFailureLiterals(
+        sourceText: String,
+        failureClassNames: Set<String> = emptySet(),
+    ): List<Int> {
+        val violationLines = mutableListOf<Int>()
+        val failureCallRegex = Regex("""\b([A-Z][A-Za-z0-9_]*Failure)\s*\(""")
+        val stringLiteralRegex = Regex(""""([^"]*)"""")
+        val machineCodeRegex = Regex("""^(?:[A-Z0-9_]+|\$\{[A-Za-z0-9_.]+\}|\$[A-Za-z0-9_]+)+$""")
+        failureCallRegex.findAll(sourceText).forEach { match ->
+            val className = match.groupValues[1]
+            if (failureClassNames.isNotEmpty() && className !in failureClassNames) {
+                return@forEach
+            }
+            val prefixStart = (match.range.first - 20).coerceAtLeast(0)
+            val prefix = sourceText.substring(prefixStart, match.range.first)
+            if (Regex("""\b(?:class|interface)\s+$""").containsMatchIn(prefix)) {
+                return@forEach
+            }
+            val openParenIndex = match.range.last
+            val closeParenIndex = findMatchingCloseParen(
+                sourceText = sourceText,
+                openParenIndex = openParenIndex,
+            )
+            if (closeParenIndex <= openParenIndex) {
+                return@forEach
+            }
+            val args = sourceText.substring(openParenIndex + 1, closeParenIndex)
+            val hasDisplayLiteral = stringLiteralRegex.findAll(args).any { literalMatch ->
+                val content = literalMatch.groupValues[1]
+                content.isNotEmpty() && !machineCodeRegex.matches(content)
+            }
+            if (hasDisplayLiteral) {
+                val lineNumber = sourceText.substring(0, match.range.first).count { it == '\n' } + 1
+                violationLines.add(lineNumber)
+            }
         }
-        val varNameMatch = Regex("""\b(?:var|val)\s+([A-Za-z0-9_]+)\b""").find(line) ?: return false
-        val varName = varNameMatch.groupValues[1]
-        if (varName.equals("postalCode", ignoreCase = true)) {
-            return false
-        }
+        return violationLines
+    }
+
+    private fun findSaveableSecrets(
+        sourceText: String,
+    ): List<Int> {
+        val violationLines = mutableListOf<Int>()
+        val declarationRegex = Regex(
+            """\b(?:var|val)\s+([A-Za-z0-9_]+)\s*(?::\s*[^=\n]+)?\s*(?:=|by)\s*rememberSaveable\b"""
+        )
         val secretNameRegex = Regex(
             """(password|totp|otp|token|secret|challenge|^code$|Code$)""",
             RegexOption.IGNORE_CASE,
         )
-        return secretNameRegex.containsMatchIn(varName)
+        declarationRegex.findAll(sourceText).forEach { match ->
+            val varName = match.groupValues[1]
+            if (!varName.equals("postalCode", ignoreCase = true) && secretNameRegex.containsMatchIn(varName)) {
+                val lineNumber = sourceText.substring(0, match.range.first).count { it == '\n' } + 1
+                violationLines.add(lineNumber)
+            }
+        }
+        return violationLines
+    }
+
+    private fun findMatchingCloseParen(
+        sourceText: String,
+        openParenIndex: Int,
+    ): Int {
+        var depth = 0
+        var inDoubleQuote = false
+        var escaped = false
+        for (i in openParenIndex until sourceText.length) {
+            val ch = sourceText[i]
+            if (escaped) {
+                escaped = false
+                continue
+            }
+            if (inDoubleQuote) {
+                if (ch == '\\') {
+                    escaped = true
+                } else if (ch == '"') {
+                    inDoubleQuote = false
+                }
+                continue
+            }
+            when (ch) {
+                '"' -> inDoubleQuote = true
+                '(' -> depth += 1
+                ')' -> {
+                    depth -= 1
+                    if (depth == 0) {
+                        return i
+                    }
+                }
+            }
+        }
+        return -1
     }
 
     private fun containsCommentOutsideLiterals(line: String): Boolean {
