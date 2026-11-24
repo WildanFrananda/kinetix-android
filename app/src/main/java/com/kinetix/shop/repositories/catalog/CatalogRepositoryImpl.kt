@@ -88,26 +88,26 @@ class CatalogRepositoryImpl @Inject constructor(
             },
             transform = { dto ->
                 val items = mutableListOf<ProductSummary>()
-                for (item in dto.results) {
-                    if (item.price.toBigDecimalOrNull() == null) {
+                for ((id, sku, title, category, categorySlug1, price, currency, imageUrl, merchantPrincipalId, weightGrams, availableStock, _, stockStatus) in dto.results) {
+                    if (price.toBigDecimalOrNull() == null) {
                         return@execute Err(
-                            UnreadableAnswerFailure("Invalid product price '${item.price}'")
+                            UnreadableAnswerFailure()
                         )
                     }
                     items.add(
                         ProductSummary(
-                            id = item.id,
-                            sku = ProductSku(item.sku),
-                            title = item.title,
-                            categoryName = item.category,
-                            categorySlug = CategorySlug(item.categorySlug),
-                            price = item.price,
-                            currency = item.currency,
-                            imageUrl = item.imageUrl,
-                            merchantPrincipalId = PrincipalId(item.merchantPrincipalId),
-                            weightGrams = item.weightGrams,
-                            availableStock = item.availableStock,
-                            stockStatus = parseStockStatus(item.stockStatus),
+                            id = id,
+                            sku = ProductSku(sku),
+                            title = title,
+                            categoryName = category,
+                            categorySlug = CategorySlug(categorySlug1),
+                            price = price,
+                            currency = currency,
+                            imageUrl = imageUrl,
+                            merchantPrincipalId = PrincipalId(merchantPrincipalId),
+                            weightGrams = weightGrams,
+                            availableStock = availableStock,
+                            stockStatus = parseStockStatus(stockStatus),
                             dataOrigin = DataOrigin.LIVE,
                         )
                     )
@@ -171,7 +171,7 @@ class CatalogRepositoryImpl @Inject constructor(
             transform = { dto ->
                 if (dto.price.toBigDecimalOrNull() == null) {
                     return@execute Err(
-                        UnreadableAnswerFailure("Invalid product price '${dto.price}'")
+                        UnreadableAnswerFailure()
                     )
                 }
                 Ok(

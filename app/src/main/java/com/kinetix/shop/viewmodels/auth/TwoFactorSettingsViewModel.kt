@@ -158,6 +158,5 @@ class TwoFactorSettingsViewModel @Inject constructor(
 
     override fun onCleared() {
         countdownTimer.cancel()
-        super.onCleared()
     }
 }

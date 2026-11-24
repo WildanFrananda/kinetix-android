@@ -143,7 +143,6 @@
 
     <string name="product_detail_loading">Loading product details…</string>
     <string name="product_detail_sku_category_format">SKU: %1$s • Category: %2$s</string>
-    <string name="product_detail_flash_sale_badge">FLASH SALE • %1$s (%2$d left)</string>
     <string name="product_detail_discount_badge">PROMO • %1$s</string>
     <string name="product_detail_indication_note">Indicative price only. Authoritative total is calculated by Kinetix Pricing during checkout.</string>
     <string name="product_detail_warehouse_available_no_count">Warehouse Stock: Available</string>
@@ -155,6 +154,10 @@
     <string name="product_detail_reviews_empty">No buyer reviews yet for this product.</string>
     <string name="product_detail_review_rating_format">Rating: %1$d / 5</string>
 
+    <plurals name="product_detail_flash_sale_badge">
+        <item quantity="one">FLASH SALE • %1$s (%2$d item left)</item>
+        <item quantity="other">FLASH SALE • %1$s (%2$d items left)</item>
+    </plurals>
     <plurals name="product_detail_warehouse_available">
         <item quantity="one">Warehouse Stock: %1$d unit available</item>
         <item quantity="other">Warehouse Stock: %1$d units available</item>
