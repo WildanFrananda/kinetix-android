@@ -141,7 +141,6 @@
 
     <string name="product_detail_loading">Memuat detail produk…</string>
     <string name="product_detail_sku_category_format">SKU: %1$s • Kategori: %2$s</string>
-    <string name="product_detail_flash_sale_badge">FLASH SALE • %1$s (sisa %2$d)</string>
     <string name="product_detail_discount_badge">PROMO • %1$s</string>
     <string name="product_detail_indication_note">Harga indikasi saja. Total akhir dihitung oleh Kinetix Pricing saat checkout.</string>
     <string name="product_detail_warehouse_available_no_count">Stok Gudang: Tersedia</string>
@@ -153,6 +152,9 @@
     <string name="product_detail_reviews_empty">Belum ada ulasan pembeli untuk produk ini.</string>
     <string name="product_detail_review_rating_format">Penilaian: %1$d / 5</string>
 
+    <plurals name="product_detail_flash_sale_badge">
+        <item quantity="other">FLASH SALE • %1$s (sisa %2$d)</item>
+    </plurals>
     <plurals name="product_detail_warehouse_available">
         <item quantity="other">Stok Gudang: %1$d unit tersedia</item>
     </plurals>

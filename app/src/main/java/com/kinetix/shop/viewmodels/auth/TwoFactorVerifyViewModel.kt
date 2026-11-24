@@ -33,7 +33,7 @@ class TwoFactorVerifyViewModel @Inject constructor(
     private val mfaChallengeStore: MfaChallengeStore,
 ) : ViewModel() {
     private val countdownTimer = DelayCountdownTimer(viewModelScope)
-    private val mutableState = MutableStateFlow<AsyncFormUiState>(
+    private val mutableState = MutableStateFlow(
         if (mfaChallengeStore.peek() == null) {
             FormChallengeExpiredUiState
         } else {
@@ -110,6 +110,5 @@ class TwoFactorVerifyViewModel @Inject constructor(
     @SuppressLint("EmptySuperCall")
     override fun onCleared() {
         countdownTimer.cancel()
-        super.onCleared()
     }
 }

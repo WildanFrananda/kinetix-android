@@ -136,8 +136,9 @@ fun ProductDetailScreen(
                         val flashSale = priceIndication.appliedFlashSale
                         if (flashSale != null) {
                             Text(
-                                text = stringResource(
-                                    R.string.product_detail_flash_sale_badge,
+                                text = pluralStringResource(
+                                    R.plurals.product_detail_flash_sale_badge,
+                                    flashSale.remainingQuota,
                                     flashSale.title,
                                     flashSale.remainingQuota,
                                 ),

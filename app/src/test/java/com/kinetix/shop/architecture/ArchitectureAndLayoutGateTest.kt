@@ -16,6 +16,18 @@ class ArchitectureAndLayoutGateTest {
         "app/src/test/java/com/kinetix/shop",
     )
 
+    private val allowedLayerImports: Map<String, Set<String>> = mapOf(
+        "ui" to setOf("ui", "viewmodels", "state", "routes", "models", "core"),
+        "viewmodels" to setOf("viewmodels", "repositories", "services", "state", "models", "core"),
+        "state" to setOf("state", "models", "core"),
+        "routes" to setOf("routes", "models"),
+        "repositories" to setOf("repositories", "services", "dto", "models", "core"),
+        "services" to setOf("services", "dto", "models", "core"),
+        "dto" to setOf("dto"),
+        "models" to setOf("models"),
+        "core" to setOf("core"),
+    )
+
     @Test
     fun commentScannerHandlesStringsCharsUrlsAndTrailingComments() {
         assertFalse(containsCommentOutsideLiterals("""val expected = "a // b""""))
@@ -26,6 +38,72 @@ class ArchitectureAndLayoutGateTest {
         assertTrue(containsCommentOutsideLiterals("""val c = '/' // note"""))
         assertTrue(containsCommentOutsideLiterals("""foo() // trailing"""))
         assertTrue(containsCommentOutsideLiterals("""/* block */"""))
+    }
+
+    @Test
+    fun gateScannersCatchViolatingSyntheticSnippets() {
+        assertTrue(
+            findImportDirectionViolations(
+                layer = "services",
+                lines = listOf("import com.kinetix.shop.repositories.auth.SessionRepository"),
+            ).isNotEmpty()
+        )
+        assertTrue(
+            findImportDirectionViolations(
+                layer = "ui",
+                lines = listOf("import com.kinetix.shop.repositories.auth.SessionRepository"),
+            ).isNotEmpty()
+        )
+        assertTrue(
+            findImportDirectionViolations(
+                layer = "core",
+                lines = listOf("import com.kinetix.shop.dto.common.ApiErrorResponseDto"),
+            ).isNotEmpty()
+        )
+        assertTrue(
+            findImportDirectionViolations(
+                layer = "viewmodels",
+                lines = listOf("import com.kinetix.shop.viewmodels.auth.SignInViewModel"),
+            ).isEmpty()
+        )
+
+        assertTrue(containsDispatchersReference("withContext(Dispatchers.IO) {}"))
+        assertFalse(containsDispatchersReference("withContext(ioDispatcher) {}"))
+
+        assertTrue(
+            findFunctionTypeParameters(
+                """
+                class BadViewModel {
+                    fun signIn(
+                        email: String,
+                        onAuthenticated: () -> Unit,
+                    ) {}
+                }
+                """.trimIndent()
+            ).isNotEmpty()
+        )
+        assertTrue(
+            findFunctionTypeParameters(
+                """
+                class GoodViewModel {
+                    fun signIn(
+                        email: String,
+                        password: String,
+                    ) {}
+                }
+                """.trimIndent()
+            ).isEmpty()
+        )
+
+        assertTrue(containsDisplayTextFailureLiteral("""UnauthorizedFailure("Invalid password")"""))
+        assertTrue(containsDisplayTextFailureLiteral("""NetworkFailure("no route to host")"""))
+        assertFalse(containsDisplayTextFailureLiteral("""UnauthorizedFailure(code = "NOT_SIGNED_IN")"""))
+        assertFalse(containsDisplayTextFailureLiteral("""NetworkFailure()"""))
+
+        assertTrue(containsSaveableSecret("""var password by rememberSaveable { mutableStateOf("") }"""))
+        assertTrue(containsSaveableSecret("""var totpCode by rememberSaveable { mutableStateOf("") }"""))
+        assertFalse(containsSaveableSecret("""var email by rememberSaveable { mutableStateOf("") }"""))
+        assertFalse(containsSaveableSecret("""var password by remember { mutableStateOf("") }"""))
     }
 
     @Test
@@ -72,6 +150,7 @@ class ArchitectureAndLayoutGateTest {
             "repositories",
             "state",
             "viewmodels",
+            "ui/screens",
         )
         val violations = mutableListOf<String>()
 
@@ -91,6 +170,145 @@ class ArchitectureAndLayoutGateTest {
 
         assertTrue(
             "Found flat-layer violations:\n${violations.joinToString("\n")}",
+            violations.isEmpty(),
+        )
+    }
+
+    @Test
+    fun enforcesLayerImportDirectionFromSection13() {
+        val violations = mutableListOf<String>()
+        allKotlinFiles(mainJavaRoot).forEach { file ->
+            val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
+            val layer = relPath.substringBefore('/')
+            if (layer in allowedLayerImports) {
+                val fileViolations = findImportDirectionViolations(
+                    layer = layer,
+                    lines = file.readLines(),
+                )
+                fileViolations.forEach { detail ->
+                    violations.add("$relPath $detail")
+                }
+            }
+        }
+
+        assertTrue(
+            "Found layer import direction violations:\n${violations.joinToString("\n")}",
+            violations.isEmpty(),
+        )
+    }
+
+    @Test
+    fun forbidsDispatchersOutsideDi() {
+        val violations = mutableListOf<String>()
+        allKotlinFiles(mainJavaRoot).forEach { file ->
+            val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
+            if (!relPath.startsWith("di/")) {
+                file.readLines().forEachIndexed { idx, line ->
+                    if (containsDispatchersReference(line)) {
+                        violations.add("$relPath:${idx + 1} references Dispatchers directly outside di/")
+                    }
+                }
+            }
+        }
+
+        assertTrue(
+            "Found Dispatchers violations outside di/:\n${violations.joinToString("\n")}",
+            violations.isEmpty(),
+        )
+    }
+
+    @Test
+    fun forbidsFunctionTypeParametersInViewModels() {
+        val violations = mutableListOf<String>()
+        val viewModelsDir = File(mainJavaRoot, "viewmodels")
+        allKotlinFiles(viewModelsDir).forEach { file ->
+            val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
+            findFunctionTypeParameters(file.readText()).forEach { detail ->
+                violations.add("$relPath $detail")
+            }
+        }
+
+        assertTrue(
+            "Found function-type parameters in viewmodels/:\n${violations.joinToString("\n")}",
+            violations.isEmpty(),
+        )
+    }
+
+    @Test
+    fun forbidsDestructiveMigrationFallbackOutsideCacheBuilder() {
+        val violations = mutableListOf<String>()
+        allKotlinFiles(mainJavaRoot).forEach { file ->
+            val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
+            val lines = file.readLines()
+            var currentFunctionName: String? = null
+            val funHeaderRegex = Regex("""^\s*fun\s+([A-Za-z0-9_]+)\s*\(""")
+            lines.forEachIndexed { idx, line ->
+                val match = funHeaderRegex.find(line)
+                if (match != null) {
+                    currentFunctionName = match.groupValues[1]
+                }
+                if (line.contains("fallbackToDestructiveMigration")) {
+                    val isCacheBuilder = relPath == "di/CoreModule.kt" &&
+                        currentFunctionName == "provideKinetixCacheDatabase"
+                    if (!isCacheBuilder) {
+                        violations.add(
+                            "$relPath:${idx + 1} uses fallbackToDestructiveMigration outside provideKinetixCacheDatabase"
+                        )
+                    }
+                }
+            }
+        }
+
+        assertTrue(
+            "Found destructive migration fallback violations:\n${violations.joinToString("\n")}",
+            violations.isEmpty(),
+        )
+    }
+
+    @Test
+    fun forbidsDisplayTextPropertiesAndStringLiteralsInFailures() {
+        val violations = mutableListOf<String>()
+        val failureDir = File(mainJavaRoot, "core/failure")
+        val forbiddenPropRegex = Regex("""val\s+(detail|message)\s*:\s*String""")
+        allKotlinFiles(failureDir).forEach { file ->
+            val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
+            file.readLines().forEachIndexed { idx, line ->
+                if (forbiddenPropRegex.containsMatchIn(line)) {
+                    violations.add("$relPath:${idx + 1} declares display-text property on Failure")
+                }
+            }
+        }
+
+        allKotlinFiles(mainJavaRoot).forEach { file ->
+            val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
+            file.readLines().forEachIndexed { idx, line ->
+                if (containsDisplayTextFailureLiteral(line)) {
+                    violations.add("$relPath:${idx + 1} passes display-text string literal to a Failure")
+                }
+            }
+        }
+
+        assertTrue(
+            "Found Failure display-text violations:\n${violations.joinToString("\n")}",
+            violations.isEmpty(),
+        )
+    }
+
+    @Test
+    fun forbidsRememberSaveableForSecrets() {
+        val violations = mutableListOf<String>()
+        val uiDir = File(mainJavaRoot, "ui")
+        allKotlinFiles(uiDir).forEach { file ->
+            val relPath = file.relativeTo(mainJavaRoot).path.replace(File.separatorChar, '/')
+            file.readLines().forEachIndexed { idx, line ->
+                if (containsSaveableSecret(line)) {
+                    violations.add("$relPath:${idx + 1} stores a secret in rememberSaveable")
+                }
+            }
+        }
+
+        assertTrue(
+            "Found rememberSaveable secret violations:\n${violations.joinToString("\n")}",
             violations.isEmpty(),
         )
     }
@@ -204,6 +422,93 @@ class ArchitectureAndLayoutGateTest {
             "Found network/DI guardrail violations:\n${violations.joinToString("\n")}",
             violations.isEmpty(),
         )
+    }
+
+    private fun findImportDirectionViolations(
+        layer: String,
+        lines: List<String>,
+    ): List<String> {
+        val allowed = allowedLayerImports[layer] ?: return emptyList()
+        val importRegex = Regex("""^import\s+com\.kinetix\.shop\.([A-Za-z0-9_]+)\b""")
+        val violations = mutableListOf<String>()
+        lines.forEachIndexed { idx, line ->
+            val match = importRegex.find(line.trim()) ?: return@forEachIndexed
+            val target = match.groupValues[1]
+            if (target !in allowed && target != "R" && target != "BuildConfig") {
+                violations.add(":${idx + 1} ($layer -> $target)")
+            }
+        }
+        return violations
+    }
+
+    private fun containsDispatchersReference(
+        line: String,
+    ): Boolean {
+        return Regex("""\bDispatchers\.""").containsMatchIn(line)
+    }
+
+    private fun findFunctionTypeParameters(
+        sourceText: String,
+    ): List<String> {
+        val violations = mutableListOf<String>()
+        val funHeaderRegex = Regex("""\bfun\s+([A-Za-z0-9_]+)\s*\(""")
+        funHeaderRegex.findAll(sourceText).forEach { match ->
+            val funName = match.groupValues[1]
+            val openParenIndex = match.range.last
+            var depth = 0
+            var closeParenIndex = -1
+            for (i in openParenIndex until sourceText.length) {
+                when (sourceText[i]) {
+                    '(' -> depth += 1
+                    ')' -> {
+                        depth -= 1
+                        if (depth == 0) {
+                            closeParenIndex = i
+                            break
+                        }
+                    }
+                }
+            }
+            if (closeParenIndex > openParenIndex) {
+                val params = sourceText.substring(openParenIndex + 1, closeParenIndex)
+                if (params.contains("->")) {
+                    violations.add("fun $funName declares a function-type parameter")
+                }
+            }
+        }
+        return violations
+    }
+
+    private fun containsDisplayTextFailureLiteral(
+        line: String,
+    ): Boolean {
+        val failureCallRegex = Regex("""[A-Z][A-Za-z0-9_]*Failure\s*\(([^)]*)\)""")
+        val stringLiteralRegex = Regex(""""([^"]*)"""")
+        val machineCodeRegex = Regex("""^(?:[A-Z0-9_]+|\$\{[A-Za-z0-9_.]+\}|\$[A-Za-z0-9_]+)+$""")
+        val match = failureCallRegex.find(line) ?: return false
+        val args = match.groupValues[1]
+        return stringLiteralRegex.findAll(args).any { literalMatch ->
+            val content = literalMatch.groupValues[1]
+            content.isNotEmpty() && !machineCodeRegex.matches(content)
+        }
+    }
+
+    private fun containsSaveableSecret(
+        line: String,
+    ): Boolean {
+        if (!line.contains("rememberSaveable")) {
+            return false
+        }
+        val varNameMatch = Regex("""\b(?:var|val)\s+([A-Za-z0-9_]+)\b""").find(line) ?: return false
+        val varName = varNameMatch.groupValues[1]
+        if (varName.equals("postalCode", ignoreCase = true)) {
+            return false
+        }
+        val secretNameRegex = Regex(
+            """(password|totp|otp|token|secret|challenge|^code$|Code$)""",
+            RegexOption.IGNORE_CASE,
+        )
+        return secretNameRegex.containsMatchIn(varName)
     }
 
     private fun containsCommentOutsideLiterals(line: String): Boolean {

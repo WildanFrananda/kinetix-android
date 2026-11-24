@@ -96,6 +96,5 @@ class SignInViewModel @Inject constructor(
     @SuppressLint("EmptySuperCall")
     override fun onCleared() {
         countdownTimer.cancel()
-        super.onCleared()
     }
 }
