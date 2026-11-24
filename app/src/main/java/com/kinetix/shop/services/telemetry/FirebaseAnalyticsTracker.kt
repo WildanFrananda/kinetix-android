@@ -17,7 +17,7 @@ class FirebaseAnalyticsTracker @Inject constructor(
         principalId: PrincipalId?,
     ) {
         if (FirebaseApp.getApps(context).isNotEmpty()) {
-            FirebaseAnalytics.getInstance(context).setUserId(principalId?.value)
+            FirebaseAnalytics.getInstance(context).setUserId(null)
         }
     }
 

@@ -1,5 +1,6 @@
 package com.kinetix.shop.viewmodels.auth
 
+import android.annotation.SuppressLint
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kinetix.shop.core.config.NetworkPolicy
@@ -11,7 +12,10 @@ import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.time.DelayCountdownTimer
 import com.kinetix.shop.repositories.auth.AuthRepository
+import com.kinetix.shop.services.auth.MfaChallengeStore
 import com.kinetix.shop.state.common.AsyncFormUiState
+import com.kinetix.shop.state.common.FormAuthenticatedUiState
+import com.kinetix.shop.state.common.FormChallengeExpiredUiState
 import com.kinetix.shop.state.common.FormDelayedUiState
 import com.kinetix.shop.state.common.FormErrorUiState
 import com.kinetix.shop.state.common.FormIdleUiState
@@ -26,19 +30,28 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class TwoFactorVerifyViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val mfaChallengeStore: MfaChallengeStore,
 ) : ViewModel() {
     private val countdownTimer = DelayCountdownTimer(viewModelScope)
-    private val mutableState = MutableStateFlow<AsyncFormUiState>(FormIdleUiState)
+    private val mutableState = MutableStateFlow<AsyncFormUiState>(
+        if (mfaChallengeStore.peek() == null) {
+            FormChallengeExpiredUiState
+        } else {
+            FormIdleUiState
+        }
+    )
     val uiState: StateFlow<AsyncFormUiState> = mutableState.asStateFlow()
 
     fun verify(
-        challengeToken: String,
         code: String,
-        onVerified: () -> Unit,
-        onChallengeExpired: () -> Unit,
     ) {
         val current = mutableState.value
         if (current is FormSubmittingUiState || current is FormDelayedUiState) {
+            return
+        }
+        val challengeToken = mfaChallengeStore.peek()
+        if (challengeToken == null) {
+            mutableState.value = FormChallengeExpiredUiState
             return
         }
         val sanitized = code.trim()
@@ -53,8 +66,8 @@ class TwoFactorVerifyViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = authRepository.verifyTwoFactor(challengeToken, sanitized)) {
                 is Ok -> {
-                    mutableState.value = FormIdleUiState
-                    onVerified()
+                    mfaChallengeStore.clear()
+                    mutableState.value = FormAuthenticatedUiState
                 }
                 is Err -> {
                     when (val failure = result.failure) {
@@ -70,8 +83,8 @@ class TwoFactorVerifyViewModel @Inject constructor(
                             )
                         }
                         is ChallengeSpentFailure -> {
-                            mutableState.value = FormErrorUiState(failure)
-                            onChallengeExpired()
+                            mfaChallengeStore.clear()
+                            mutableState.value = FormChallengeExpiredUiState
                         }
                         else -> {
                             mutableState.value = FormErrorUiState(failure)
@@ -82,6 +95,19 @@ class TwoFactorVerifyViewModel @Inject constructor(
         }
     }
 
+    fun consumeNavigationEvent() {
+        val current = mutableState.value
+        if (current is FormAuthenticatedUiState || current is FormChallengeExpiredUiState) {
+            mutableState.value = FormIdleUiState
+        }
+    }
+
+    fun cancelChallenge() {
+        mfaChallengeStore.clear()
+        mutableState.value = FormChallengeExpiredUiState
+    }
+
+    @SuppressLint("EmptySuperCall")
     override fun onCleared() {
         countdownTimer.cancel()
         super.onCleared()

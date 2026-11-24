@@ -1,5 +1,6 @@
 package com.kinetix.shop.viewmodels.auth
 
+import android.annotation.SuppressLint
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kinetix.shop.core.failure.ClientValidationFailure
@@ -11,10 +12,13 @@ import com.kinetix.shop.core.time.DelayCountdownTimer
 import com.kinetix.shop.models.auth.SignInAuthenticated
 import com.kinetix.shop.models.auth.SignInMfaChallenge
 import com.kinetix.shop.repositories.auth.AuthRepository
+import com.kinetix.shop.services.auth.MfaChallengeStore
 import com.kinetix.shop.state.common.AsyncFormUiState
+import com.kinetix.shop.state.common.FormAuthenticatedUiState
 import com.kinetix.shop.state.common.FormDelayedUiState
 import com.kinetix.shop.state.common.FormErrorUiState
 import com.kinetix.shop.state.common.FormIdleUiState
+import com.kinetix.shop.state.common.FormMfaChallengeUiState
 import com.kinetix.shop.state.common.FormSubmittingUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -26,6 +30,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SignInViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val mfaChallengeStore: MfaChallengeStore,
 ) : ViewModel() {
     private val countdownTimer = DelayCountdownTimer(viewModelScope)
     private val mutableState = MutableStateFlow<AsyncFormUiState>(FormIdleUiState)
@@ -34,8 +39,6 @@ class SignInViewModel @Inject constructor(
     fun signIn(
         email: String,
         password: String,
-        onAuthenticated: () -> Unit,
-        onMfaChallenge: (String) -> Unit,
     ) {
         val current = mutableState.value
         if (current is FormSubmittingUiState || current is FormDelayedUiState) {
@@ -54,12 +57,12 @@ class SignInViewModel @Inject constructor(
                 is Ok -> {
                     when (val outcome = result.value) {
                         is SignInAuthenticated -> {
-                            mutableState.value = FormIdleUiState
-                            onAuthenticated()
+                            mfaChallengeStore.clear()
+                            mutableState.value = FormAuthenticatedUiState
                         }
                         is SignInMfaChallenge -> {
-                            mutableState.value = FormIdleUiState
-                            onMfaChallenge(outcome.challengeToken)
+                            mfaChallengeStore.store(outcome.challengeToken)
+                            mutableState.value = FormMfaChallengeUiState
                         }
                     }
                 }
@@ -83,6 +86,14 @@ class SignInViewModel @Inject constructor(
         }
     }
 
+    fun consumeNavigationEvent() {
+        val current = mutableState.value
+        if (current is FormAuthenticatedUiState || current is FormMfaChallengeUiState) {
+            mutableState.value = FormIdleUiState
+        }
+    }
+
+    @SuppressLint("EmptySuperCall")
     override fun onCleared() {
         countdownTimer.cancel()
         super.onCleared()

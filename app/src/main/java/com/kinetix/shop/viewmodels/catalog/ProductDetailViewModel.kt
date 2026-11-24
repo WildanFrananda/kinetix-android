@@ -1,5 +1,7 @@
 package com.kinetix.shop.viewmodels.catalog
 
+import android.annotation.SuppressLint
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kinetix.shop.core.result.Err
@@ -15,6 +17,7 @@ import com.kinetix.shop.state.catalog.ProductDetailLoadingUiState
 import com.kinetix.shop.state.catalog.ProductDetailUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,15 +29,79 @@ class ProductDetailViewModel @Inject constructor(
     private val catalogRepository: CatalogRepository,
     private val pricingRepository: PricingRepository,
     private val reviewRepository: ReviewRepository,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+    @SuppressLint("VisibleForTests")
+    constructor(
+        catalogRepository: CatalogRepository,
+        pricingRepository: PricingRepository,
+        reviewRepository: ReviewRepository,
+    ) : this(
+        catalogRepository = catalogRepository,
+        pricingRepository = pricingRepository,
+        reviewRepository = reviewRepository,
+        savedStateHandle = SavedStateHandle(),
+    )
+
     private val mutableState = MutableStateFlow<ProductDetailUiState>(ProductDetailLoadingUiState)
     val uiState: StateFlow<ProductDetailUiState> = mutableState.asStateFlow()
+
+    private var activeSku: ProductSku? = null
+    private var loadJob: Job? = null
+    private var reviewsJob: Job? = null
+
+    init {
+        val routeSku = savedStateHandle.get<String>("sku")?.takeIf { it.isNotBlank() }
+        if (routeSku != null) {
+            loadProduct(ProductSku(routeSku))
+        }
+    }
 
     fun loadProduct(
         sku: ProductSku,
     ) {
+        if (activeSku == sku && (loadJob?.isActive == true || mutableState.value is ProductDetailLoadedUiState)) {
+            return
+        }
+        startLoad(sku)
+    }
+
+    fun retry() {
+        val sku = activeSku ?: return
+        startLoad(sku)
+    }
+
+    fun loadReviewsPage(
+        page: Int,
+    ) {
+        val current = mutableState.value as? ProductDetailLoadedUiState ?: return
+        reviewsJob?.cancel()
+        reviewsJob = viewModelScope.launch {
+            when (
+                val revResult = reviewRepository.getProductReviews(
+                    sku = current.product.sku,
+                    page = page.coerceAtLeast(1),
+                )
+            ) {
+                is Ok -> {
+                    val latest = mutableState.value as? ProductDetailLoadedUiState ?: return@launch
+                    mutableState.value = latest.copy(
+                        productReviews = revResult.value,
+                    )
+                }
+                is Err -> Unit
+            }
+        }
+    }
+
+    private fun startLoad(
+        sku: ProductSku,
+    ) {
+        activeSku = sku
+        loadJob?.cancel()
+        reviewsJob?.cancel()
         mutableState.value = ProductDetailLoadingUiState
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             val product = when (val detailResult = catalogRepository.getProductDetail(sku)) {
                 is Ok -> detailResult.value
                 is Err -> {
@@ -93,27 +160,6 @@ class ProductDetailViewModel @Inject constructor(
                 productReviews = productReviews,
                 merchantReviews = merchantReviews,
             )
-        }
-    }
-
-    fun loadReviewsPage(
-        page: Int,
-    ) {
-        val current = mutableState.value as? ProductDetailLoadedUiState ?: return
-        viewModelScope.launch {
-            when (
-                val revResult = reviewRepository.getProductReviews(
-                    sku = current.product.sku,
-                    page = page.coerceAtLeast(1),
-                )
-            ) {
-                is Ok -> {
-                    mutableState.value = current.copy(
-                        productReviews = revResult.value,
-                    )
-                }
-                is Err -> Unit
-            }
         }
     }
 }

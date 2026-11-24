@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,7 +24,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -31,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
@@ -49,21 +52,11 @@ import com.kinetix.shop.viewmodels.search.SearchViewModel
 @Composable
 fun SearchScreen(
     initialQuery: String = "",
-    initialCategorySlug: CategorySlug? = null,
     viewModel: SearchViewModel,
     onSelectProduct: (ProductSku) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var queryInput by rememberSaveable { mutableStateOf(initialQuery) }
-
-    LaunchedEffect(initialQuery, initialCategorySlug, state) {
-        if (state is SearchIdleUiState && (initialQuery.isNotBlank() || initialCategorySlug != null)) {
-            viewModel.executeSearch(
-                query = initialQuery,
-                categorySlug = initialCategorySlug,
-            )
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -83,6 +76,15 @@ fun SearchScreen(
                 },
                 label = { Text(text = stringResource(R.string.search_field_label)) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Search,
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        viewModel.executeSearch(query = queryInput)
+                    },
+                ),
                 modifier = Modifier.weight(1f),
             )
             Button(

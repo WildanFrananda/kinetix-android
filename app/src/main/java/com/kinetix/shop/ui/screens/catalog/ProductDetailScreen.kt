@@ -15,7 +15,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,26 +27,21 @@ import com.kinetix.shop.R
 import com.kinetix.shop.core.format.LocaleFormatter
 import com.kinetix.shop.models.catalog.StockStatus
 import com.kinetix.shop.models.common.DataOrigin
-import com.kinetix.shop.models.ids.ProductSku
 import com.kinetix.shop.state.catalog.ProductDetailErrorUiState
 import com.kinetix.shop.state.catalog.ProductDetailLoadedUiState
 import com.kinetix.shop.state.catalog.ProductDetailLoadingUiState
 import com.kinetix.shop.ui.components.ErrorBannerBlock
 import com.kinetix.shop.ui.components.LoadingIndicatorBlock
 import com.kinetix.shop.ui.components.PaginationControlsRow
+import com.kinetix.shop.ui.components.ProductImageBox
 import com.kinetix.shop.ui.theme.KinetixPalette
 import com.kinetix.shop.viewmodels.catalog.ProductDetailViewModel
 
 @Composable
 fun ProductDetailScreen(
-    sku: ProductSku,
     viewModel: ProductDetailViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(sku) {
-        viewModel.loadProduct(sku)
-    }
 
     Column(
         modifier = Modifier
@@ -65,7 +59,7 @@ fun ProductDetailScreen(
             is ProductDetailErrorUiState -> {
                 ErrorBannerBlock(
                     failure = current.failure,
-                    onRetry = { viewModel.loadProduct(sku) },
+                    onRetry = { viewModel.retry() },
                 )
             }
             is ProductDetailLoadedUiState -> {
@@ -91,6 +85,13 @@ fun ProductDetailScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        ProductImageBox(
+                            imageUrl = product.imageUrl,
+                            contentDescription = product.title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp),
+                        )
                         Text(
                             text = stringResource(
                                 R.string.product_detail_sku_category_format,

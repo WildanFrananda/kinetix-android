@@ -1,6 +1,5 @@
 package com.kinetix.shop.di
 
-import com.kinetix.shop.core.network.RequestCorrelationRecorder
 import com.kinetix.shop.core.network.RequestIdGenerator
 import com.kinetix.shop.core.network.UuidRequestIdGenerator
 import com.kinetix.shop.core.time.Clock
@@ -21,8 +20,8 @@ import com.kinetix.shop.repositories.review.ReviewRepository
 import com.kinetix.shop.repositories.review.ReviewRepositoryImpl
 import com.kinetix.shop.repositories.search.SearchRepository
 import com.kinetix.shop.repositories.search.SearchRepositoryImpl
-import com.kinetix.shop.services.config.FeatureFlagProvider
-import com.kinetix.shop.services.config.FirebaseFeatureFlagProvider
+import com.kinetix.shop.services.auth.InMemoryMfaChallengeStore
+import com.kinetix.shop.services.auth.MfaChallengeStore
 import com.kinetix.shop.services.local.CatalogCacheStore
 import com.kinetix.shop.services.local.OutboxStore
 import com.kinetix.shop.services.local.ProfileCacheStore
@@ -44,10 +43,6 @@ import com.kinetix.shop.services.session.SingleFlightSessionRenewer
 import com.kinetix.shop.services.session.TokenRefreshTransport
 import com.kinetix.shop.services.storage.KeyStoreSessionCipher
 import com.kinetix.shop.services.storage.SessionCipher
-import com.kinetix.shop.services.telemetry.AnalyticsTracker
-import com.kinetix.shop.services.telemetry.CrashReporter
-import com.kinetix.shop.services.telemetry.FirebaseAnalyticsTracker
-import com.kinetix.shop.services.telemetry.FirebaseCrashReporter
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -71,27 +66,9 @@ abstract class CoreBindingsModule {
 
     @Binds
     @Singleton
-    abstract fun bindRequestCorrelationRecorder(
-        impl: FirebaseCrashReporter,
-    ): RequestCorrelationRecorder
-
-    @Binds
-    @Singleton
-    abstract fun bindCrashReporter(
-        impl: FirebaseCrashReporter,
-    ): CrashReporter
-
-    @Binds
-    @Singleton
-    abstract fun bindAnalyticsTracker(
-        impl: FirebaseAnalyticsTracker,
-    ): AnalyticsTracker
-
-    @Binds
-    @Singleton
-    abstract fun bindFeatureFlagProvider(
-        impl: FirebaseFeatureFlagProvider,
-    ): FeatureFlagProvider
+    abstract fun bindMfaChallengeStore(
+        impl: InMemoryMfaChallengeStore,
+    ): MfaChallengeStore
 
     @Binds
     @Singleton

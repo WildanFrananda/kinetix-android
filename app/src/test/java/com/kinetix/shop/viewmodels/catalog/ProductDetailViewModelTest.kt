@@ -1,5 +1,6 @@
 package com.kinetix.shop.viewmodels.catalog
 
+import androidx.lifecycle.SavedStateHandle
 import com.kinetix.shop.core.failure.UnavailableFailure
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
@@ -42,7 +43,7 @@ class ProductDetailViewModelTest {
     }
 
     @Test
-    fun degradesGracefullyWhenPricingAndReviewsFail() = runTest(testDispatcher) {
+    fun loadsAutomaticallyFromSavedStateHandleAndDegradesGracefullyWhenPricingAndReviewsFail() = runTest(testDispatcher) {
         val unavailable = UnavailableFailure(
             code = "UPSTREAM_UNAVAILABLE",
             retryAfterSeconds = null,
@@ -83,9 +84,9 @@ class ProductDetailViewModelTest {
             catalogRepository = catalogRepo,
             pricingRepository = pricingRepo,
             reviewRepository = reviewRepo,
+            savedStateHandle = SavedStateHandle(mapOf("sku" to sku.value)),
         )
 
-        viewModel.loadProduct(sku)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value

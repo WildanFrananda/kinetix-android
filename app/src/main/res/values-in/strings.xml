@@ -12,6 +12,8 @@
     <string name="config_error_reason_has_path">%1$s tidak boleh berisi path</string>
     <string name="config_error_reason_has_query_or_fragment">%1$s tidak boleh berisi parameter query atau fragment</string>
     <string name="config_error_reason_generic">Konfigurasi endpoint tidak valid</string>
+    <string name="force_update_title">Pembaruan Diperlukan</string>
+    <string name="force_update_message">Versi terbaru Kinetix diperlukan untuk melanjutkan. Silakan perbarui aplikasi lalu coba lagi.</string>
 
     <string name="nav_home">Beranda</string>
     <string name="nav_search">Cari</string>

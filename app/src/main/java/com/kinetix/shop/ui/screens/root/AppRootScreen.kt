@@ -1,4 +1,4 @@
-package com.kinetix.shop.ui.screens
+package com.kinetix.shop.ui.screens.root
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -23,10 +24,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -34,6 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
@@ -46,7 +50,6 @@ import com.kinetix.shop.models.auth.SessionRestoring
 import com.kinetix.shop.models.auth.SessionSignedIn
 import com.kinetix.shop.models.auth.SessionSignedOut
 import com.kinetix.shop.models.auth.SessionUnreadable
-import com.kinetix.shop.repositories.auth.SessionRepository
 import com.kinetix.shop.routes.HomeRoute
 import com.kinetix.shop.routes.ProductDetailRoute
 import com.kinetix.shop.routes.ProfileRoute
@@ -55,12 +58,16 @@ import com.kinetix.shop.routes.SearchRoute
 import com.kinetix.shop.routes.SignInRoute
 import com.kinetix.shop.routes.TwoFactorSettingsRoute
 import com.kinetix.shop.routes.TwoFactorVerifyRoute
+import com.kinetix.shop.state.common.FormAuthenticatedUiState
+import com.kinetix.shop.state.common.FormChallengeExpiredUiState
+import com.kinetix.shop.state.common.FormMfaChallengeUiState
 import com.kinetix.shop.ui.screens.auth.RegisterScreen
 import com.kinetix.shop.ui.screens.auth.SignInScreen
 import com.kinetix.shop.ui.screens.auth.TwoFactorSettingsScreen
 import com.kinetix.shop.ui.screens.auth.TwoFactorVerifyScreen
 import com.kinetix.shop.ui.screens.catalog.HomeScreen
 import com.kinetix.shop.ui.screens.catalog.ProductDetailScreen
+import com.kinetix.shop.ui.screens.config.ForceUpdateScreen
 import com.kinetix.shop.ui.screens.profile.ProfileScreen
 import com.kinetix.shop.ui.screens.search.SearchScreen
 import com.kinetix.shop.ui.theme.KinetixPalette
@@ -71,20 +78,39 @@ import com.kinetix.shop.viewmodels.auth.TwoFactorVerifyViewModel
 import com.kinetix.shop.viewmodels.catalog.HomeCatalogViewModel
 import com.kinetix.shop.viewmodels.catalog.ProductDetailViewModel
 import com.kinetix.shop.viewmodels.profile.ProfileViewModel
+import com.kinetix.shop.viewmodels.root.AppRootViewModel
 import com.kinetix.shop.viewmodels.search.SearchViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun AppRootScreen(
-    sessionRepository: SessionRepository,
+    viewModel: AppRootViewModel,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
-    val sessionState by sessionRepository.sessionState.collectAsStateWithLifecycle()
-    val currentSession = (sessionState as? SessionSignedIn)?.session
-    val coroutineScope = rememberCoroutineScope()
+    val sessionState by viewModel.sessionState.collectAsStateWithLifecycle()
+    val forceUpdateRequired by viewModel.forceUpdateRequired.collectAsStateWithLifecycle()
     var pendingAuthTarget by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onAppForegrounded()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    if (forceUpdateRequired) {
+        ForceUpdateScreen(
+            onRecheck = { viewModel.onAppForegrounded() },
+        )
+        return
+    }
 
     val isSignedIn = sessionState is SessionSignedIn
     val isOnHome = currentDestination?.hasRoute<HomeRoute>() == true
@@ -95,10 +121,6 @@ fun AppRootScreen(
         isOnProfile ||
             currentDestination?.hasRoute<SignInRoute>() == true ||
             currentDestination?.hasRoute<RegisterRoute>() == true
-
-    LaunchedEffect(Unit) {
-        sessionRepository.restoreSession()
-    }
 
     LaunchedEffect(sessionState, currentDestination) {
         if (sessionState !is SessionSignedOut) {
@@ -137,6 +159,7 @@ fun AppRootScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -240,9 +263,9 @@ fun AppRootScreen(
                 startDestination = HomeRoute,
             ) {
                 composable<HomeRoute> {
-                    val viewModel: HomeCatalogViewModel = hiltViewModel()
+                    val homeViewModel: HomeCatalogViewModel = hiltViewModel()
                     HomeScreen(
-                        viewModel = viewModel,
+                        viewModel = homeViewModel,
                         onSelectProduct = { sku ->
                             navController.navigate(ProductDetailRoute(sku = sku.value))
                         },
@@ -250,32 +273,41 @@ fun AppRootScreen(
                 }
                 composable<SearchRoute> { entry ->
                     val route = entry.toRoute<SearchRoute>()
-                    val viewModel: SearchViewModel = hiltViewModel()
+                    val searchViewModel: SearchViewModel = hiltViewModel()
                     SearchScreen(
                         initialQuery = route.initialQuery,
-                        initialCategorySlug = route.toCategorySlug(),
-                        viewModel = viewModel,
+                        viewModel = searchViewModel,
                         onSelectProduct = { sku ->
                             navController.navigate(ProductDetailRoute(sku = sku.value))
                         },
                     )
                 }
-                composable<ProductDetailRoute> { entry ->
-                    val route = entry.toRoute<ProductDetailRoute>()
-                    val viewModel: ProductDetailViewModel = hiltViewModel()
+                composable<ProductDetailRoute> {
+                    val productDetailViewModel: ProductDetailViewModel = hiltViewModel()
                     ProductDetailScreen(
-                        sku = route.toProductSku(),
-                        viewModel = viewModel,
+                        viewModel = productDetailViewModel,
                     )
                 }
                 composable<SignInRoute> {
-                    val viewModel: SignInViewModel = hiltViewModel()
+                    val signInViewModel: SignInViewModel = hiltViewModel()
+                    val signInState by signInViewModel.uiState.collectAsStateWithLifecycle()
+                    LaunchedEffect(signInState) {
+                        when (signInState) {
+                            is FormAuthenticatedUiState -> {
+                                handleAuthenticated()
+                                signInViewModel.consumeNavigationEvent()
+                            }
+                            is FormMfaChallengeUiState -> {
+                                navController.navigate(TwoFactorVerifyRoute) {
+                                    launchSingleTop = true
+                                }
+                                signInViewModel.consumeNavigationEvent()
+                            }
+                            else -> Unit
+                        }
+                    }
                     SignInScreen(
-                        viewModel = viewModel,
-                        onAuthenticated = { handleAuthenticated() },
-                        onMfaChallenge = { challengeToken ->
-                            navController.navigate(TwoFactorVerifyRoute(challengeToken))
-                        },
+                        viewModel = signInViewModel,
                         onNavigateToRegister = {
                             navController.navigate(RegisterRoute) {
                                 launchSingleTop = true
@@ -284,25 +316,39 @@ fun AppRootScreen(
                     )
                 }
                 composable<RegisterRoute> {
-                    val viewModel: RegisterViewModel = hiltViewModel()
+                    val registerViewModel: RegisterViewModel = hiltViewModel()
+                    val registerState by registerViewModel.uiState.collectAsStateWithLifecycle()
+                    LaunchedEffect(registerState) {
+                        if (registerState is FormAuthenticatedUiState) {
+                            handleAuthenticated()
+                            registerViewModel.consumeNavigationEvent()
+                        }
+                    }
                     RegisterScreen(
-                        viewModel = viewModel,
-                        onRegistered = { handleAuthenticated() },
+                        viewModel = registerViewModel,
                         onNavigateToSignIn = {
                             navController.popBackStack<SignInRoute>(inclusive = false)
                         },
                     )
                 }
-                composable<TwoFactorVerifyRoute> { entry ->
-                    val route = entry.toRoute<TwoFactorVerifyRoute>()
-                    val viewModel: TwoFactorVerifyViewModel = hiltViewModel()
+                composable<TwoFactorVerifyRoute> {
+                    val twoFactorVerifyViewModel: TwoFactorVerifyViewModel = hiltViewModel()
+                    val verifyState by twoFactorVerifyViewModel.uiState.collectAsStateWithLifecycle()
+                    LaunchedEffect(verifyState) {
+                        when (verifyState) {
+                            is FormAuthenticatedUiState -> {
+                                handleAuthenticated()
+                                twoFactorVerifyViewModel.consumeNavigationEvent()
+                            }
+                            is FormChallengeExpiredUiState -> {
+                                navController.popBackStack<SignInRoute>(inclusive = false)
+                                twoFactorVerifyViewModel.consumeNavigationEvent()
+                            }
+                            else -> Unit
+                        }
+                    }
                     TwoFactorVerifyScreen(
-                        challengeToken = route.challengeToken,
-                        viewModel = viewModel,
-                        onVerified = { handleAuthenticated() },
-                        onChallengeExpired = {
-                            navController.popBackStack<SignInRoute>(inclusive = false)
-                        },
+                        viewModel = twoFactorVerifyViewModel,
                     )
                 }
                 composable<TwoFactorSettingsRoute> {
@@ -343,9 +389,9 @@ fun AppRootScreen(
                         }
 
                         is SessionSignedIn -> {
-                            val viewModel: TwoFactorSettingsViewModel = hiltViewModel()
+                            val settingsViewModel: TwoFactorSettingsViewModel = hiltViewModel()
                             TwoFactorSettingsScreen(
-                                viewModel = viewModel,
+                                viewModel = settingsViewModel,
                             )
                         }
 
@@ -391,25 +437,23 @@ fun AppRootScreen(
 
                         is SessionSignedIn -> {
                             val activeSession = state.session
-                            val viewModel: ProfileViewModel = hiltViewModel()
+                            val profileViewModel: ProfileViewModel = hiltViewModel()
                             ProfileScreen(
                                 email = activeSession.email,
                                 accountId = activeSession.accountId.value,
                                 principalId = activeSession.principalId.value,
-                                viewModel = viewModel,
+                                viewModel = profileViewModel,
                                 onNavigateToTwoFactorSettings = {
                                     navController.navigate(TwoFactorSettingsRoute) {
                                         launchSingleTop = true
                                     }
                                 },
                                 onSignOut = {
-                                    coroutineScope.launch {
-                                        sessionRepository.signOut()
-                                        pendingAuthTarget = null
-                                        navController.navigate(HomeRoute) {
-                                            popUpTo<HomeRoute> { inclusive = true }
-                                            launchSingleTop = true
-                                        }
+                                    viewModel.signOut()
+                                    pendingAuthTarget = null
+                                    navController.navigate(HomeRoute) {
+                                        popUpTo<HomeRoute> { inclusive = true }
+                                        launchSingleTop = true
                                     }
                                 },
                             )

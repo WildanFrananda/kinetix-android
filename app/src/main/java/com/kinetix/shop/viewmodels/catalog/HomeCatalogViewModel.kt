@@ -13,6 +13,7 @@ import com.kinetix.shop.state.catalog.HomeCatalogLoadingUiState
 import com.kinetix.shop.state.catalog.HomeCatalogUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,9 +29,17 @@ class HomeCatalogViewModel @Inject constructor(
 
     private var cachedCategories: List<Category> = emptyList()
     private var activeCategorySlug: CategorySlug? = null
+    private var loadJob: Job? = null
+
+    init {
+        loadPage(
+            categorySlug = null,
+            page = 1,
+        )
+    }
 
     fun loadInitialCatalog() {
-        if (mutableState.value is HomeCatalogLoadedUiState) {
+        if (loadJob?.isActive == true || mutableState.value is HomeCatalogLoadedUiState) {
             return
         }
         loadPage(
@@ -69,8 +78,9 @@ class HomeCatalogViewModel @Inject constructor(
         categorySlug: CategorySlug?,
         page: Int,
     ) {
+        loadJob?.cancel()
         mutableState.value = HomeCatalogLoadingUiState
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             val categoriesDeferred = if (cachedCategories.isEmpty()) {
                 async { catalogRepository.listCategories() }
             } else {

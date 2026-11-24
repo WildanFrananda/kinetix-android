@@ -3,6 +3,4 @@ package com.kinetix.shop.routes
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object RegisterRoute : AppRoute {
-    override val requiresAuthentication: Boolean = false
-}
+data object RegisterRoute : AppRoute

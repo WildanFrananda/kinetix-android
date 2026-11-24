@@ -8,8 +8,6 @@ data class SearchRoute(
     val initialQuery: String = "",
     val initialCategorySlug: String? = null,
 ) : AppRoute {
-    override val requiresAuthentication: Boolean = false
-
     fun toCategorySlug(): CategorySlug? {
         return initialCategorySlug?.let { CategorySlug(it) }
     }

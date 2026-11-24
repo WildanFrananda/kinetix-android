@@ -21,9 +21,26 @@ class FirebaseFeatureFlagProvider @Inject constructor(
     override fun isForceUpdateRequired(
         currentVersionCode: Int,
     ): Boolean {
-        val remoteConfig = readyRemoteConfigOrNull() ?: return false
-        val forceUpdateFlag = remoteConfig.getBoolean(KEY_FORCE_UPDATE_ENABLED)
-        val minimumVersionCode = remoteConfig.getLong(KEY_MINIMUM_SUPPORTED_VERSION_CODE).coerceAtLeast(1L)
+        val remoteConfig = remoteConfigInstanceOrNull() ?: return false
+        val forceUpdateValue = remoteConfig.getValue(KEY_FORCE_UPDATE_ENABLED)
+        val minVersionValue = remoteConfig.getValue(KEY_MINIMUM_SUPPORTED_VERSION_CODE)
+
+        val forceUpdateFlag = when {
+            forceUpdateValue.source == FirebaseRemoteConfig.VALUE_SOURCE_REMOTE ->
+                forceUpdateValue.asBoolean()
+            defaultsReady.get() ->
+                remoteConfig.getBoolean(KEY_FORCE_UPDATE_ENABLED)
+            else -> false
+        }
+
+        val minimumVersionCode = when {
+            minVersionValue.source == FirebaseRemoteConfig.VALUE_SOURCE_REMOTE ->
+                minVersionValue.asLong().coerceAtLeast(1L)
+            defaultsReady.get() ->
+                remoteConfig.getLong(KEY_MINIMUM_SUPPORTED_VERSION_CODE).coerceAtLeast(1L)
+            else -> 1L
+        }
+
         return forceUpdateFlag || currentVersionCode.toLong() < minimumVersionCode
     }
 
