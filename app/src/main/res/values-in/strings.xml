@@ -182,8 +182,13 @@
 
     <string name="nav_cart">Keranjang</string>
     <string name="cart_title">Keranjang Belanja</string>
-    <string name="cart_item_count_format">%1$d barang</string>
+    <plurals name="cart_item_count_format">
+        <item quantity="one">%1$d barang</item>
+        <item quantity="other">%1$d barang</item>
+    </plurals>
     <string name="cart_voucher_toggle">Punya kode voucher?</string>
+    <string name="catalog_loading_accessibility">Memuat produk</string>
+    <string name="search_loading_accessibility">Mencari produk</string>
     <string name="cart_empty_title">Keranjang Anda kosong</string>
     <string name="cart_empty_subtitle">Jelajahi produk dan tambahkan barang untuk mulai checkout.</string>
     <string name="cart_item_unit_price_format">Harga satuan: %1$s</string>
@@ -215,5 +220,5 @@
     <string name="error_cart_own_product">Anda tidak dapat membeli produk milik akun sendiri.</string>
     <string name="error_cart_catalog_unavailable">Layanan katalog sedang tidak tersedia. Tidak ada perubahan yang dilakukan.</string>
     <string name="error_cart_unavailable">Keranjang tidak dapat diakses saat ini. Silakan coba beberapa saat lagi.</string>
-    <string name="error_cart_write_unknown">Kami belum dapat memastikan apakah perubahan keranjang berhasil. Keranjang Anda telah dimuat ulang.</string>
+    <string name="error_cart_write_unknown">Kami belum dapat memastikan apakah perubahan keranjang berhasil. Muat ulang keranjang Anda sebelum mencoba lagi.</string>
 </resources>

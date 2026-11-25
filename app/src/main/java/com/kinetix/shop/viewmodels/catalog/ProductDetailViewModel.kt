@@ -53,6 +53,7 @@ class ProductDetailViewModel @Inject constructor(
     private var activeSku: ProductSku? = null
     private var loadJob: Job? = null
     private var reviewsJob: Job? = null
+    private var pendingReconciliationSku: ProductSku? = null
 
     init {
         val routeSku = savedStateHandle.get<String>("sku")?.takeIf { it.isNotBlank() }
@@ -90,8 +91,23 @@ class ProductDetailViewModel @Inject constructor(
             addToCartFailure = null,
         )
         viewModelScope.launch {
+            if (pendingReconciliationSku == current.product.sku) {
+                when (val cartCheck = repository.getCart()) {
+                    is Ok -> pendingReconciliationSku = null
+                    is Err -> {
+                        val latest = mutableState.value as? ProductDetailLoadedUiState ?: return@launch
+                        mutableState.value = latest.copy(
+                            isAddingToCart = false,
+                            addedToCartBanner = false,
+                            addToCartFailure = cartCheck.failure,
+                        )
+                        return@launch
+                    }
+                }
+            }
             when (val result = repository.addCartItem(sku = current.product.sku, quantity = clamped)) {
                 is Ok -> {
+                    pendingReconciliationSku = null
                     val latest = mutableState.value as? ProductDetailLoadedUiState ?: return@launch
                     mutableState.value = latest.copy(
                         isAddingToCart = false,
@@ -100,6 +116,9 @@ class ProductDetailViewModel @Inject constructor(
                     )
                 }
                 is Err -> {
+                    if (result.failure is com.kinetix.shop.core.failure.UnknownOutcomeFailure) {
+                        pendingReconciliationSku = current.product.sku
+                    }
                     val latest = mutableState.value as? ProductDetailLoadedUiState ?: return@launch
                     mutableState.value = latest.copy(
                         isAddingToCart = false,

@@ -188,8 +188,13 @@
 
     <string name="nav_cart">Cart</string>
     <string name="cart_title">Shopping Cart</string>
-    <string name="cart_item_count_format">%1$d items</string>
+    <plurals name="cart_item_count_format">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
     <string name="cart_voucher_toggle">Have a voucher code?</string>
+    <string name="catalog_loading_accessibility">Loading products</string>
+    <string name="search_loading_accessibility">Searching products</string>
     <string name="cart_empty_title">Your cart is empty</string>
     <string name="cart_empty_subtitle">Browse products and add items to begin checkout.</string>
     <string name="cart_item_unit_price_format">Unit price: %1$s</string>
@@ -221,5 +226,5 @@
     <string name="error_cart_own_product">You cannot purchase your own product.</string>
     <string name="error_cart_catalog_unavailable">Catalog service is temporarily unavailable. Nothing was changed.</string>
     <string name="error_cart_unavailable">Your cart cannot be reached right now. Please try again shortly.</string>
-    <string name="error_cart_write_unknown">We could not confirm whether your cart update completed. Your cart has been refreshed.</string>
+    <string name="error_cart_write_unknown">We could not confirm whether your cart update completed. Refresh your cart before retrying.</string>
 </resources>

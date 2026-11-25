@@ -41,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -90,7 +91,11 @@ fun CartScreen(
                 if (loaded != null && loaded.cart.items.isNotEmpty()) {
                     val totalQuantity = loaded.cart.items.sumOf { it.quantity }
                     Text(
-                        text = stringResource(R.string.cart_item_count_format, totalQuantity),
+                        text = pluralStringResource(
+                            R.plurals.cart_item_count_format,
+                            totalQuantity,
+                            totalQuantity,
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         color = KinetixPalette.TextMuted,
                     )
@@ -398,8 +403,8 @@ fun CartScreen(
 
                                     val terms = current.voucherTerms
                                     if (terms != null) {
-                                        val benefitText = if (terms.discountType == DiscountType.PERCENTAGE) {
-                                            stringResource(
+                                        val benefitText = when (terms.discountType) {
+                                            DiscountType.PERCENTAGE -> stringResource(
                                                 R.string.cart_voucher_terms_percentage,
                                                 terms.value.stripTrailingZeros().toPlainString(),
                                                 LocaleFormatter.formatMoney(
@@ -407,8 +412,7 @@ fun CartScreen(
                                                     currencyCode = "IDR",
                                                 ),
                                             )
-                                        } else {
-                                            stringResource(
+                                            DiscountType.FIXED -> stringResource(
                                                 R.string.cart_voucher_terms_fixed,
                                                 LocaleFormatter.formatMoney(
                                                     amountString = terms.value.toPlainString(),
@@ -419,12 +423,15 @@ fun CartScreen(
                                                     currencyCode = "IDR",
                                                 ),
                                             )
+                                            DiscountType.UNKNOWN -> null
                                         }
-                                        Text(
-                                            text = benefitText,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        )
+                                        if (benefitText != null) {
+                                            Text(
+                                                text = benefitText,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            )
+                                        }
                                     }
 
                                     if (current.voucherPreviewRejected) {

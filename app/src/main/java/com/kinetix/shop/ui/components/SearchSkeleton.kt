@@ -11,14 +11,21 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.kinetix.shop.R
 
 @Composable
 fun SearchSkeleton(
     modifier: Modifier = Modifier,
 ) {
+    val loadingLabel = stringResource(R.string.search_loading_accessibility)
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = loadingLabel },
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         SkeletonBox(

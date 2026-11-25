@@ -97,27 +97,27 @@ class PricingRepositoryImpl @Inject constructor(
             },
             transform = { dtos ->
                 val result = mutableListOf<PromotionDiscount>()
-                for (dto in dtos) {
-                    if (dto.value.toBigDecimalOrNull() == null) {
+                for ((id, title, discountType, value, targetProductId, targetCategoryId, active, startTime, endTime, merchantPrincipalId) in dtos) {
+                    if (value.toBigDecimalOrNull() == null) {
                         return@execute Err(UnreadableAnswerFailure())
                     }
-                    val type = if (dto.discountType.equals("PERCENTAGE", ignoreCase = true)) {
-                        DiscountType.PERCENTAGE
-                    } else {
-                        DiscountType.FIXED
+                    val type = when {
+                        discountType.equals("PERCENTAGE", ignoreCase = true) -> DiscountType.PERCENTAGE
+                        discountType.equals("FIXED", ignoreCase = true) -> DiscountType.FIXED
+                        else -> DiscountType.UNKNOWN
                     }
                     result.add(
                         PromotionDiscount(
-                            id = dto.id,
-                            title = dto.title,
+                            id = id,
+                            title = title,
                             discountType = type,
-                            value = dto.value,
-                            targetProductSku = dto.targetProductId?.let { ProductSku(it) },
-                            targetCategorySlug = dto.targetCategoryId?.let { CategorySlug(it) },
-                            active = dto.active,
-                            startTime = dto.startTime,
-                            endTime = dto.endTime,
-                            merchantPrincipalId = dto.merchantPrincipalId?.let { PrincipalId(it) },
+                            value = value,
+                            targetProductSku = targetProductId?.let { ProductSku(it) },
+                            targetCategorySlug = targetCategoryId?.let { CategorySlug(it) },
+                            active = active,
+                            startTime = startTime,
+                            endTime = endTime,
+                            merchantPrincipalId = merchantPrincipalId?.let { PrincipalId(it) },
                         )
                     )
                 }
@@ -187,6 +187,7 @@ class PricingRepositoryImpl @Inject constructor(
                 DiscountType.FIXED -> {
                     (baseDecimal - discountVal).max(BigDecimal.ZERO)
                 }
+                DiscountType.UNKNOWN -> continue
             }
             if (discountedDecimal < bestDecimal) {
                 bestDecimal = discountedDecimal
@@ -258,18 +259,18 @@ class PricingRepositoryImpl @Inject constructor(
     private fun mapVoucherToDomain(
         dto: VoucherResponseDto,
     ): VoucherTerms {
-        val type = if (dto.discountType.equals("PERCENTAGE", ignoreCase = true)) {
-            DiscountType.PERCENTAGE
-        } else {
-            DiscountType.FIXED
+        val type = when {
+            dto.discountType.equals("PERCENTAGE", ignoreCase = true) -> DiscountType.PERCENTAGE
+            dto.discountType.equals("FIXED", ignoreCase = true) -> DiscountType.FIXED
+            else -> DiscountType.UNKNOWN
         }
         return VoucherTerms(
             code = VoucherCode(dto.code),
             title = dto.title,
             discountType = type,
-            value = dto.value.toBigDecimalOrNull() ?: BigDecimal.ZERO,
-            minSpend = dto.minSpend.toBigDecimalOrNull() ?: BigDecimal.ZERO,
-            maxDiscount = dto.maxDiscount?.toBigDecimalOrNull(),
+            value = dto.value.toBigDecimal(),
+            minSpend = dto.minSpend.toBigDecimal(),
+            maxDiscount = dto.maxDiscount?.toBigDecimal(),
             expiresAt = dto.expiresAt,
             merchantPrincipalId = dto.merchantPrincipalId?.let { PrincipalId(it) },
         )

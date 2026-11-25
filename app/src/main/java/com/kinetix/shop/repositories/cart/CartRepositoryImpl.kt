@@ -157,17 +157,35 @@ class CartRepositoryImpl @Inject constructor(
     ): Result<T> {
         return sessionRepository.withValidSession { session ->
             val result = block("Bearer ${session.accessToken}")
-            if (
-                result is Err &&
-                result.failure is UnavailableFailure &&
-                result.failure.code == "CART_UNAVAILABLE"
-            ) {
-                Err(
-                    UnknownOutcomeFailure(
-                        code = "CART_UNAVAILABLE",
-                        requestId = result.failure.requestId,
+            if (result is Err) {
+                when (val failure = result.failure) {
+                    is UnavailableFailure if failure.code == "CART_UNAVAILABLE" -> Err(
+                        UnknownOutcomeFailure(
+                            code = "CART_UNAVAILABLE",
+                            requestId = failure.requestId,
+                        )
                     )
-                )
+
+                    is com.kinetix.shop.core.failure.NetworkFailure -> Err(
+                        UnknownOutcomeFailure(
+                            requestId = failure.requestId,
+                        )
+                    )
+
+                    is com.kinetix.shop.core.failure.UnreadableAnswerFailure -> Err(
+                        UnknownOutcomeFailure(
+                            requestId = failure.requestId,
+                        )
+                    )
+
+                    is com.kinetix.shop.core.failure.TimeoutFailure -> Err(
+                        UnknownOutcomeFailure(
+                            requestId = failure.requestId,
+                        )
+                    )
+
+                    else -> result
+                }
             } else {
                 result
             }
@@ -177,18 +195,18 @@ class CartRepositoryImpl @Inject constructor(
     private fun mapToDomain(
         dto: CartResponseDto,
     ): Cart {
-        val subtotal = dto.subtotal.content.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+        val subtotal = dto.subtotal.content.toBigDecimal()
         return Cart(
             customerPrincipalId = PrincipalId(dto.customerPrincipalId),
             items = dto.items.map { item ->
                 CartItem(
                     productId = ProductSku(item.productId),
                     productTitle = item.productTitle,
-                    unitPrice = item.unitPrice.content.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO,
+                    unitPrice = item.unitPrice.content.toBigDecimal(),
                     quantity = item.quantity,
                     categoryId = item.categoryId,
                     merchantPrincipalId = item.merchantPrincipalId?.let { PrincipalId(it) },
-                    lineTotal = item.lineTotal.content.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO,
+                    lineTotal = item.lineTotal.content.toBigDecimal(),
                 )
             },
             appliedVoucherCode = dto.appliedVoucherCode?.takeIf { it.isNotBlank() }?.let { VoucherCode(it) },

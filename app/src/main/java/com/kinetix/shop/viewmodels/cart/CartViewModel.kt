@@ -33,6 +33,7 @@ class CartViewModel @Inject constructor(
 
     private var loadJob: Job? = null
     private var mutationJob: Job? = null
+    private var stateGeneration: Long = 0L
 
     init {
         startLoad()
@@ -55,6 +56,7 @@ class CartViewModel @Inject constructor(
             return
         }
         val clamped = quantity.coerceIn(1, MAX_LINE_QUANTITY)
+        val generation = ++stateGeneration
         mutableState.value = current.copy(
             isMutating = true,
             actionFailure = null,
@@ -62,6 +64,7 @@ class CartViewModel @Inject constructor(
         mutationJob = viewModelScope.launch {
             applyCartResult(
                 previous = current,
+                generation = generation,
                 result = cartRepository.updateCartItem(sku = sku, quantity = clamped),
             )
         }
@@ -74,6 +77,7 @@ class CartViewModel @Inject constructor(
         if (mutationJob?.isActive == true) {
             return
         }
+        val generation = ++stateGeneration
         mutableState.value = current.copy(
             isMutating = true,
             actionFailure = null,
@@ -81,6 +85,7 @@ class CartViewModel @Inject constructor(
         mutationJob = viewModelScope.launch {
             applyCartResult(
                 previous = current,
+                generation = generation,
                 result = cartRepository.removeCartItem(sku = sku),
             )
         }
@@ -91,6 +96,7 @@ class CartViewModel @Inject constructor(
         if (mutationJob?.isActive == true) {
             return
         }
+        val generation = ++stateGeneration
         mutableState.value = current.copy(
             isMutating = true,
             actionFailure = null,
@@ -98,6 +104,9 @@ class CartViewModel @Inject constructor(
         mutationJob = viewModelScope.launch {
             when (val result = cartRepository.clearCart()) {
                 is Ok -> {
+                    if (generation != stateGeneration) {
+                        return@launch
+                    }
                     mutableState.value = CartLoadedUiState(
                         cart = Cart(
                             customerPrincipalId = current.cart.customerPrincipalId,
@@ -109,7 +118,7 @@ class CartViewModel @Inject constructor(
                     )
                 }
                 is Err -> {
-                    handleMutationFailure(current, result.failure)
+                    handleMutationFailure(current, result.failure, generation)
                 }
             }
         }
@@ -137,6 +146,7 @@ class CartViewModel @Inject constructor(
         }
 
         val code = VoucherCode(trimmed)
+        val generation = ++stateGeneration
         mutableState.value = current.copy(
             isMutating = true,
             actionFailure = null,
@@ -162,6 +172,9 @@ class CartViewModel @Inject constructor(
 
             when (val applyResult = cartRepository.applyCartVoucher(code)) {
                 is Ok -> {
+                    if (generation != stateGeneration) {
+                        return@launch
+                    }
                     mutableState.value = CartLoadedUiState(
                         cart = applyResult.value,
                         isMutating = false,
@@ -178,6 +191,7 @@ class CartViewModel @Inject constructor(
                             voucherPreviewRejected = previewRejected,
                         ),
                         failure = applyResult.failure,
+                        generation = generation,
                     )
                 }
             }
@@ -189,6 +203,7 @@ class CartViewModel @Inject constructor(
         if (mutationJob?.isActive == true) {
             return
         }
+        val generation = ++stateGeneration
         mutableState.value = current.copy(
             isMutating = true,
             actionFailure = null,
@@ -196,6 +211,7 @@ class CartViewModel @Inject constructor(
         mutationJob = viewModelScope.launch {
             applyCartResult(
                 previous = current,
+                generation = generation,
                 result = cartRepository.removeCartVoucher(),
             )
         }
@@ -203,8 +219,12 @@ class CartViewModel @Inject constructor(
 
     private suspend fun applyCartResult(
         previous: CartLoadedUiState,
+        generation: Long,
         result: com.kinetix.shop.core.result.Result<Cart>,
     ) {
+        if (generation != stateGeneration) {
+            return
+        }
         when (result) {
             is Ok -> {
                 mutableState.value = previous.copy(
@@ -214,7 +234,7 @@ class CartViewModel @Inject constructor(
                 )
             }
             is Err -> {
-                handleMutationFailure(previous, result.failure)
+                handleMutationFailure(previous, result.failure, generation)
             }
         }
     }
@@ -222,10 +242,17 @@ class CartViewModel @Inject constructor(
     private suspend fun handleMutationFailure(
         previous: CartLoadedUiState,
         failure: com.kinetix.shop.core.failure.Failure,
+        generation: Long,
     ) {
+        if (generation != stateGeneration) {
+            return
+        }
         if (failure is UnknownOutcomeFailure) {
             when (val refreshed = cartRepository.getCart()) {
                 is Ok -> {
+                    if (generation != stateGeneration) {
+                        return
+                    }
                     mutableState.value = previous.copy(
                         cart = refreshed.value,
                         isMutating = false,
@@ -233,8 +260,11 @@ class CartViewModel @Inject constructor(
                     )
                 }
                 is Err -> {
+                    if (generation != stateGeneration) {
+                        return
+                    }
                     mutableState.value = previous.copy(
-                        isMutating = false,
+                        isMutating = true,
                         actionFailure = failure,
                     )
                 }
@@ -250,6 +280,7 @@ class CartViewModel @Inject constructor(
 
     private fun startLoad() {
         loadJob?.cancel()
+        val generation = ++stateGeneration
         mutableState.value = CartLoadingUiState
         loadJob = viewModelScope.launch {
             when (val result = cartRepository.getCart()) {
@@ -264,12 +295,18 @@ class CartViewModel @Inject constructor(
                     } else {
                         null
                     }
+                    if (generation != stateGeneration) {
+                        return@launch
+                    }
                     mutableState.value = CartLoadedUiState(
                         cart = cart,
                         voucherTerms = voucherTerms,
                     )
                 }
                 is Err -> {
+                    if (generation != stateGeneration) {
+                        return@launch
+                    }
                     mutableState.value = CartErrorUiState(failure = result.failure)
                 }
             }

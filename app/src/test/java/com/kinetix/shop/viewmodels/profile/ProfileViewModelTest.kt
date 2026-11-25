@@ -31,6 +31,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModelTest {
@@ -202,8 +203,10 @@ class ProfileViewModelTest {
             geocodedAt = "2026-10-20T09:00:00Z",
         )
         val liveProfile = cachedProfile.copy(fullName = "Budi Live")
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
         val repository = FakeProfileRepository().apply {
             this.cachedProfile = cachedProfile
+            this.getProfileGate = gate
             getProfileResult = Ok(liveProfile)
         }
 
@@ -212,6 +215,12 @@ class ProfileViewModelTest {
             addressGeocoder = FakeAddressGeocoder(),
             deviceLocationProvider = FakeDeviceLocationProvider(),
         )
+        testScheduler.runCurrent()
+
+        val cachedState = viewModel.uiState.value as ProfileLoadedUiState
+        assertEquals(cachedProfile, cachedState.profile)
+
+        gate.complete(Unit)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as ProfileLoadedUiState
@@ -261,7 +270,7 @@ class ProfileViewModelTest {
             city = "Bandung",
             postalCode = "40111",
         )
-        advanceTimeBy(600L)
+        advanceTimeBy(600L.milliseconds)
         advanceUntilIdle()
 
         val afterEdit = viewModel.uiState.value as ProfileLoadedUiState

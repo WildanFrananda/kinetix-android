@@ -539,6 +539,23 @@ fun AppRootScreen(
 
                         is SessionSignedIn -> {
                             val cartViewModel: CartViewModel = hiltViewModel()
+                            val lifecycleOwner = LocalLifecycleOwner.current
+                            var skippedInitialResume by rememberSaveable { mutableStateOf(false) }
+                            DisposableEffect(lifecycleOwner, cartViewModel) {
+                                val observer = LifecycleEventObserver { _, event ->
+                                    if (event == Lifecycle.Event.ON_RESUME) {
+                                        if (skippedInitialResume) {
+                                            cartViewModel.refresh()
+                                        } else {
+                                            skippedInitialResume = true
+                                        }
+                                    }
+                                }
+                                lifecycleOwner.lifecycle.addObserver(observer)
+                                onDispose {
+                                    lifecycleOwner.lifecycle.removeObserver(observer)
+                                }
+                            }
                             CartScreen(
                                 viewModel = cartViewModel,
                             )

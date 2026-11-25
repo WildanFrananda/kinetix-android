@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -39,6 +40,8 @@ class ProfileViewModel @Inject constructor(
 
     private var loadJob: Job? = null
     private var geocodeJob: Job? = null
+    private var operationGeneration: Long = 0L
+    private var geocodedAddressSignature: String? = null
 
     init {
         startLoad()
@@ -73,6 +76,11 @@ class ProfileViewModel @Inject constructor(
                 longitude = longitude,
             )
             val latest = mutableState.value as? ProfileLoadedUiState ?: return@launch
+            geocodedAddressSignature = if (resolved != null) {
+                addressSignature(resolved.streetAddress, resolved.city, resolved.postalCode)
+            } else {
+                null
+            }
             mutableState.value = latest.copy(
                 selectedLatitude = latitude,
                 selectedLongitude = longitude,
@@ -95,13 +103,17 @@ class ProfileViewModel @Inject constructor(
         if (mutableState.value !is ProfileLoadedUiState) {
             return
         }
+        val signature = addressSignature(streetAddress, city, postalCode)
+        if (signature != geocodedAddressSignature) {
+            geocodedAddressSignature = null
+        }
         geocodeJob?.cancel()
         val hasQuery = streetAddress.isNotBlank() || city.isNotBlank() || postalCode.isNotBlank()
         if (!hasQuery) {
             return
         }
         geocodeJob = viewModelScope.launch {
-            delay(ADDRESS_GEOCODE_DEBOUNCE_MS)
+            delay(ADDRESS_GEOCODE_DEBOUNCE_MS.milliseconds)
             val currentBefore = mutableState.value as? ProfileLoadedUiState ?: return@launch
             mutableState.value = currentBefore.copy(isGeocodingMap = true)
             val coordinates = addressGeocoder.forwardGeocode(
@@ -111,6 +123,7 @@ class ProfileViewModel @Inject constructor(
             )
             val latest = mutableState.value as? ProfileLoadedUiState ?: return@launch
             mutableState.value = if (coordinates != null) {
+                geocodedAddressSignature = signature
                 latest.copy(
                     selectedLatitude = coordinates.latitude,
                     selectedLongitude = coordinates.longitude,
@@ -118,6 +131,7 @@ class ProfileViewModel @Inject constructor(
                     mapStatusNotice = ProfileMapStatusNotice.PIN_UPDATED_FROM_ADDRESS,
                 )
             } else {
+                geocodedAddressSignature = null
                 latest.copy(isGeocodingMap = false)
             }
         }
@@ -195,10 +209,13 @@ class ProfileViewModel @Inject constructor(
             return
         }
 
+        val submittedSignature = addressSignature(trimmedStreet, trimmedCity, trimmedPostal)
         val selectedLat = currentState.selectedLatitude
         val selectedLng = currentState.selectedLongitude
-        val coordinatesChanged = selectedLat != null &&
+        val hasMatchingCoordinates = selectedLat != null &&
             selectedLng != null &&
+            geocodedAddressSignature == submittedSignature
+        val coordinatesChanged = hasMatchingCoordinates &&
             (selectedLat != existingProfile?.latitude || selectedLng != existingProfile.longitude)
 
         val input = if (existingProfile == null) {
@@ -208,8 +225,8 @@ class ProfileViewModel @Inject constructor(
                 streetAddress = trimmedStreet,
                 city = trimmedCity,
                 postalCode = trimmedPostal,
-                latitude = selectedLat,
-                longitude = selectedLng,
+                latitude = if (hasMatchingCoordinates) selectedLat else null,
+                longitude = if (hasMatchingCoordinates) selectedLng else null,
             )
         } else {
             UpdateDeliveryProfileInput(
@@ -226,12 +243,28 @@ class ProfileViewModel @Inject constructor(
             return
         }
 
+        val generation = ++operationGeneration
         mutableState.value = ProfileSavingUiState(existingProfile)
         viewModelScope.launch {
             when (val result = profileRepository.updateProfile(input)) {
                 is Ok -> {
+                    if (generation != operationGeneration) {
+                        return@launch
+                    }
                     when (val outcome = result.value) {
                         is ProfileUpdateConfirmed -> {
+                            geocodedAddressSignature = if (
+                                outcome.profile.latitude != null &&
+                                outcome.profile.longitude != null
+                            ) {
+                                addressSignature(
+                                    outcome.profile.streetAddress,
+                                    outcome.profile.city,
+                                    outcome.profile.postalCode,
+                                )
+                            } else {
+                                null
+                            }
                             mutableState.value = ProfileLoadedUiState(
                                 profile = outcome.profile,
                                 savedBanner = true,
@@ -241,6 +274,18 @@ class ProfileViewModel @Inject constructor(
                             )
                         }
                         is ProfileUpdateQueued -> {
+                            geocodedAddressSignature = if (
+                                outcome.profile.latitude != null &&
+                                outcome.profile.longitude != null
+                            ) {
+                                addressSignature(
+                                    outcome.profile.streetAddress,
+                                    outcome.profile.city,
+                                    outcome.profile.postalCode,
+                                )
+                            } else {
+                                null
+                            }
                             mutableState.value = ProfileLoadedUiState(
                                 profile = outcome.profile,
                                 savedBanner = false,
@@ -252,6 +297,9 @@ class ProfileViewModel @Inject constructor(
                     }
                 }
                 is Err -> {
+                    if (generation != operationGeneration) {
+                        return@launch
+                    }
                     mutableState.value = currentState.copy(
                         errorFailure = result.failure,
                     )
@@ -262,9 +310,18 @@ class ProfileViewModel @Inject constructor(
 
     private fun startLoad() {
         loadJob?.cancel()
+        val generation = ++operationGeneration
         loadJob = viewModelScope.launch {
             val cached = profileRepository.getCachedProfile()
+            if (generation != operationGeneration) {
+                return@launch
+            }
             if (cached != null) {
+                geocodedAddressSignature = if (cached.latitude != null && cached.longitude != null) {
+                    addressSignature(cached.streetAddress, cached.city, cached.postalCode)
+                } else {
+                    null
+                }
                 mutableState.value = ProfileLoadedUiState(
                     profile = cached,
                     queuedOfflineBanner = !cached.isConfirmed,
@@ -277,6 +334,21 @@ class ProfileViewModel @Inject constructor(
 
             when (val result = profileRepository.getProfile()) {
                 is Ok -> {
+                    if (generation != operationGeneration) {
+                        return@launch
+                    }
+                    geocodedAddressSignature = if (
+                        result.value.latitude != null &&
+                        result.value.longitude != null
+                    ) {
+                        addressSignature(
+                            result.value.streetAddress,
+                            result.value.city,
+                            result.value.postalCode,
+                        )
+                    } else {
+                        null
+                    }
                     mutableState.value = ProfileLoadedUiState(
                         profile = result.value,
                         queuedOfflineBanner = !result.value.isConfirmed,
@@ -285,7 +357,11 @@ class ProfileViewModel @Inject constructor(
                     )
                 }
                 is Err -> {
+                    if (generation != operationGeneration) {
+                        return@launch
+                    }
                     if (result.failure is NotFoundFailure) {
+                        geocodedAddressSignature = null
                         mutableState.value = ProfileLoadedUiState(profile = null)
                     } else if (cached == null) {
                         mutableState.value = ProfileErrorUiState(failure = result.failure)
@@ -293,6 +369,14 @@ class ProfileViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun addressSignature(
+        streetAddress: String,
+        city: String,
+        postalCode: String,
+    ): String {
+        return "${streetAddress.trim()}|${city.trim()}|${postalCode.trim()}"
     }
 
     companion object {
