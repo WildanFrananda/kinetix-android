@@ -8,11 +8,13 @@ import com.kinetix.shop.dto.auth.LoginResponseDto
 import com.kinetix.shop.dto.auth.SessionTokensResponseDto
 import com.kinetix.shop.dto.auth.TwoFactorSetupResponseDto
 import com.kinetix.shop.dto.auth.TwoFactorStatusResponseDto
+import com.kinetix.shop.dto.cart.CartResponseDto
 import com.kinetix.shop.dto.catalog.CategoryDto
 import com.kinetix.shop.dto.catalog.ProductDetailResponseDto
 import com.kinetix.shop.dto.catalog.ProductListResponseDto
 import com.kinetix.shop.dto.pricing.DiscountDto
 import com.kinetix.shop.dto.pricing.FlashSaleDto
+import com.kinetix.shop.dto.pricing.VoucherResponseDto
 import com.kinetix.shop.dto.profile.UserProfileResponseDto
 import com.kinetix.shop.dto.review.MerchantReviewsResponseDto
 import com.kinetix.shop.dto.review.ProductReviewsResponseDto
@@ -154,5 +156,38 @@ class DtoContractDecodeTest {
         assertEquals(BigDecimal("89000.00"), fromString)
         assertEquals(BigDecimal("202000.55"), fromNumber)
         assertEquals(""""202000.55"""", json.encodeToString(BigDecimalSerializer, fromNumber))
+    }
+
+    @Test
+    fun decodesCartAndVoucherDtosFromPublishedSamplesIncludingNullAndEmptyVariants() {
+        val populatedCart = decodeViaRetrofit<CartResponseDto>(
+            """{"customerPrincipalId":"4c2e8a71-5b3d-4f6e-9a1c-7d8e2f3b4a50","items":[{"productId":"KOPI-ARABIKA-250","productTitle":"Kopi Arabika Gayo 250 g","unitPrice":85000,"quantity":2,"categoryId":"kopi","merchantPrincipalId":"a3d5f7b9-2c4e-4a6b-8d0f-1e3a5c7b9d21","lineTotal":170000},{"productId":"GULA-AREN-500","productTitle":"Gula Aren Cair 500 ml","unitPrice":32000,"quantity":1,"categoryId":null,"merchantPrincipalId":null,"lineTotal":32000}],"appliedVoucherCode":"HEMAT10","subtotal":202000,"updatedAt":"2026-10-22T03:15:07.4829137Z"}"""
+        )
+        assertEquals(2, populatedCart.items.size)
+        assertEquals("202000", populatedCart.subtotal.content)
+        assertEquals("HEMAT10", populatedCart.appliedVoucherCode)
+        assertNull(populatedCart.items[1].categoryId)
+        assertNull(populatedCart.items[1].merchantPrincipalId)
+
+        val emptyCart = decodeViaRetrofit<CartResponseDto>(
+            """{"customerPrincipalId":"4c2e8a71-5b3d-4f6e-9a1c-7d8e2f3b4a50","items":[],"appliedVoucherCode":null,"subtotal":0,"updatedAt":"2026-10-22T03:15:07.4829137Z"}"""
+        )
+        assertTrue(emptyCart.items.isEmpty())
+        assertNull(emptyCart.appliedVoucherCode)
+        assertEquals("0", emptyCart.subtotal.content)
+
+        val buyerVoucher = decodeViaRetrofit<VoucherResponseDto>(
+            """{"code":"HARBOLNAS25","title":"Potongan Rp25.000 Harbolnas","discount_type":"FIXED","value":"25000.00","min_spend":"150000.00","max_discount":null,"expires_at":"2026-12-12T16:59:59Z","merchant_principal_id":null}"""
+        )
+        assertEquals("HARBOLNAS25", buyerVoucher.code)
+        assertEquals("25000.00", buyerVoucher.value)
+        assertNull(buyerVoucher.maxDiscount)
+        assertNull(buyerVoucher.merchantPrincipalId)
+
+        val ownerVoucher = decodeViaRetrofit<VoucherResponseDto>(
+            """{"id":"c4d5e6f7-0a1b-4c2d-8e3f-5a6b7c8d9e0f","code":"HARBOLNAS25","title":"Potongan Rp25.000 Harbolnas","discount_type":"FIXED","value":"25000.00","min_spend":"150000.00","max_discount":null,"quota":500,"used_count":137,"active":true,"expires_at":"2026-12-12T16:59:59Z","created_at":"2026-10-22T03:15:00.482913Z","updated_at":"2026-11-02T05:21:44.067390Z","merchant_principal_id":"3f6c1a2e-9b4d-4e7a-8c5f-2d1e0b9a8c7d"}"""
+        )
+        assertEquals(500, ownerVoucher.quota)
+        assertEquals(137, ownerVoucher.usedCount)
     }
 }

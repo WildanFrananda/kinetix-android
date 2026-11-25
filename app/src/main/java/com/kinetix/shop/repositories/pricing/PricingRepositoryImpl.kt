@@ -5,14 +5,18 @@ import com.kinetix.shop.core.network.SafeApiCaller
 import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.core.result.Result
+import com.kinetix.shop.dto.pricing.ApplyVoucherRequestDto
 import com.kinetix.shop.dto.pricing.FlashSaleDto
+import com.kinetix.shop.dto.pricing.VoucherResponseDto
 import com.kinetix.shop.models.ids.CategorySlug
 import com.kinetix.shop.models.ids.PrincipalId
 import com.kinetix.shop.models.ids.ProductSku
+import com.kinetix.shop.models.ids.VoucherCode
 import com.kinetix.shop.models.pricing.DiscountType
 import com.kinetix.shop.models.pricing.FlashSale
 import com.kinetix.shop.models.pricing.ProductPriceIndication
 import com.kinetix.shop.models.pricing.PromotionDiscount
+import com.kinetix.shop.models.pricing.VoucherTerms
 import com.kinetix.shop.services.remote.PricingApiService
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -199,6 +203,75 @@ class PricingRepositoryImpl @Inject constructor(
                 appliedDiscount = bestDiscount,
                 applicableDiscounts = matchingDiscounts,
             )
+        )
+    }
+
+    override suspend fun getVoucherTerms(
+        code: VoucherCode,
+    ): Result<VoucherTerms> {
+        return safeApiCaller.execute(
+            call = {
+                apiService.getVoucher(
+                    code = code.value,
+                )
+            },
+            transform = { dto ->
+                Ok(mapVoucherToDomain(dto))
+            },
+        )
+    }
+
+    override suspend fun previewVoucher(
+        code: VoucherCode,
+        cartSubtotal: BigDecimal,
+        merchantPrincipalId: PrincipalId?,
+    ): Result<VoucherTerms?> {
+        return safeApiCaller.execute(
+            call = {
+                apiService.applyVoucherPreview(
+                    request = ApplyVoucherRequestDto(
+                        code = code.value,
+                        cartSubtotal = cartSubtotal.toPlainString(),
+                        merchantPrincipalId = merchantPrincipalId?.value,
+                    )
+                )
+            },
+            transform = { element ->
+                if (element is JsonNull) {
+                    return@execute Ok(null)
+                }
+
+                val dto = try {
+                    json.decodeFromJsonElement(
+                        VoucherResponseDto.serializer(),
+                        element,
+                    )
+                } catch (_: SerializationException) {
+                    return@execute Err(UnreadableAnswerFailure())
+                }
+
+                Ok(mapVoucherToDomain(dto))
+            },
+        )
+    }
+
+    private fun mapVoucherToDomain(
+        dto: VoucherResponseDto,
+    ): VoucherTerms {
+        val type = if (dto.discountType.equals("PERCENTAGE", ignoreCase = true)) {
+            DiscountType.PERCENTAGE
+        } else {
+            DiscountType.FIXED
+        }
+        return VoucherTerms(
+            code = VoucherCode(dto.code),
+            title = dto.title,
+            discountType = type,
+            value = dto.value.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+            minSpend = dto.minSpend.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+            maxDiscount = dto.maxDiscount?.toBigDecimalOrNull(),
+            expiresAt = dto.expiresAt,
+            merchantPrincipalId = dto.merchantPrincipalId?.let { PrincipalId(it) },
         )
     }
 }

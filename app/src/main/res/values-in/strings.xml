@@ -168,4 +168,52 @@
     <string name="session_unreadable_message">Sesi tersimpan Anda tidak dapat dibaca di perangkat ini. Masuk kembali untuk menggantinya.</string>
     <string name="session_unreadable_sign_in_action">Masuk Kembali</string>
     <string name="session_non_buyer_role_notice">Aplikasi ini khusus untuk akun pembeli. Fitur dompet memerlukan akun pelanggan.</string>
+
+    <string name="profile_map_section_title">Titik Pengiriman</string>
+    <string name="profile_map_hint">Ketuk peta untuk menandai titik pengiriman atau edit alamat di bawah agar pin berpindah otomatis.</string>
+    <string name="profile_map_use_current_location">Gunakan Lokasi Saat Ini</string>
+    <string name="profile_map_coordinates_format">Titik: %1$.5f, %2$.5f</string>
+    <string name="profile_map_no_pin">Belum ada titik peta yang dipilih</string>
+    <string name="profile_map_geocoding">Memperbarui alamat dan titik peta…</string>
+    <string name="profile_map_notice_pin_updated">Titik peta diperbarui mengikuti alamat.</string>
+    <string name="profile_map_notice_address_updated">Form alamat diisi otomatis dari titik peta.</string>
+    <string name="profile_map_notice_location_unavailable">Lokasi perangkat tidak dapat dibaca. Ketuk peta atau isi alamat secara manual.</string>
+    <string name="profile_map_notice_permission_denied">Izin lokasi ditolak. Ketuk peta atau ketik alamat untuk menandai titik.</string>
+
+    <string name="nav_cart">Keranjang</string>
+    <string name="cart_title">Keranjang Belanja</string>
+    <string name="cart_item_count_format">%1$d barang</string>
+    <string name="cart_voucher_toggle">Punya kode voucher?</string>
+    <string name="cart_empty_title">Keranjang Anda kosong</string>
+    <string name="cart_empty_subtitle">Jelajahi produk dan tambahkan barang untuk mulai checkout.</string>
+    <string name="cart_item_unit_price_format">Harga satuan: %1$s</string>
+    <string name="cart_remove_item">Hapus</string>
+    <string name="cart_single_merchant_warning">Checkout mengharuskan seluruh barang berasal dari satu merchant. Hapus barang dari merchant lain sebelum checkout.</string>
+    <string name="cart_voucher_title">Kode Voucher</string>
+    <string name="cart_voucher_field_label">Masukkan kode voucher</string>
+    <string name="cart_voucher_apply">Pakai</string>
+    <string name="cart_voucher_applied_format">Terpasang di keranjang: %1$s</string>
+    <string name="cart_voucher_remove">Lepas</string>
+    <string name="cart_voucher_terms_percentage">Hemat %1$s%% (min. belanja %2$s)</string>
+    <string name="cart_voucher_terms_fixed">Hemat %1$s (min. belanja %2$s)</string>
+    <string name="cart_voucher_preview_not_applicable">Pratinjau: voucher ini belum memenuhi syarat subtotal atau merchant keranjang saat ini.</string>
+    <string name="cart_voucher_preview_caveat">Pratinjau memakai subtotal katalog; checkout menilai kelayakan setelah flash sale dan diskon.</string>
+    <string name="cart_subtotal_indication_label">Subtotal Katalog</string>
+    <string name="cart_subtotal_indication_note">Indikasi harga katalog. Ongkos kirim dan diskon ditetapkan saat checkout.</string>
+    <string name="cart_clear_action">Kosongkan Keranjang</string>
+    <string name="product_detail_add_to_cart">Tambah ke Keranjang</string>
+    <string name="product_detail_adding_to_cart">Menambahkan…</string>
+    <string name="product_detail_added_to_cart_banner">Berhasil ditambahkan ke keranjang.</string>
+
+    <string name="error_product_not_in_catalog">Produk ini tidak lagi tersedia di katalog.</string>
+    <string name="error_cart_busy">Keranjang berubah saat diperbarui. Silakan coba lagi.</string>
+    <string name="error_cart_voucher_required">Masukkan kode voucher terlebih dahulu.</string>
+    <string name="error_cart_voucher_too_long">Kode voucher maksimal 50 karakter.</string>
+    <string name="error_cart_quantity_out_of_range">Jumlah harus di antara 1 sampai 999.</string>
+    <string name="error_cart_product_no_price">Produk ini belum memiliki harga yang dapat dibayar.</string>
+    <string name="error_cart_product_no_merchant">Produk ini belum memiliki merchant terdaftar.</string>
+    <string name="error_cart_own_product">Anda tidak dapat membeli produk milik akun sendiri.</string>
+    <string name="error_cart_catalog_unavailable">Layanan katalog sedang tidak tersedia. Tidak ada perubahan yang dilakukan.</string>
+    <string name="error_cart_unavailable">Keranjang tidak dapat diakses saat ini. Silakan coba beberapa saat lagi.</string>
+    <string name="error_cart_write_unknown">Kami belum dapat memastikan apakah perubahan keranjang berhasil. Keranjang Anda telah dimuat ulang.</string>
 </resources>

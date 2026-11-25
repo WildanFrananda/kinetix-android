@@ -9,6 +9,7 @@ import com.kinetix.shop.models.profile.UpdateDeliveryProfileInput
 import com.kinetix.shop.repositories.profile.ProfileRepository
 
 class FakeProfileRepository : ProfileRepository {
+    var cachedProfile: DeliveryProfile? = null
     var getProfileResult: Result<DeliveryProfile> = Err(
         UnauthorizedFailure("NOT_CONFIGURED")
     )
@@ -16,6 +17,10 @@ class FakeProfileRepository : ProfileRepository {
         UnauthorizedFailure("NOT_CONFIGURED")
     )
     var lastUpdatedInput: UpdateDeliveryProfileInput? = null
+
+    override suspend fun getCachedProfile(): DeliveryProfile? {
+        return cachedProfile
+    }
 
     override suspend fun getProfile(): Result<DeliveryProfile> {
         return getProfileResult

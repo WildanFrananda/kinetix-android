@@ -35,6 +35,11 @@ class ProfileRepositoryImpl @Inject constructor(
     private val outboxStore: OutboxStore,
     private val outboxSyncScheduler: OutboxSyncScheduler,
 ) : ProfileRepository {
+    override suspend fun getCachedProfile(): DeliveryProfile? {
+        val accountId = sessionRepository.currentSession.value?.accountId ?: return null
+        return safeCacheQuery { profileCacheStore.getProfile(accountId) }
+    }
+
     override suspend fun getProfile(): Result<DeliveryProfile> {
         return sessionRepository.withValidSession { session ->
             val networkResult = safeApiCaller.execute(
@@ -145,6 +150,8 @@ class ProfileRepositoryImpl @Inject constructor(
             city = input.city ?: existing.city,
             postalCode = input.postalCode ?: existing.postalCode,
             avatarUrl = nextAvatar,
+            latitude = input.latitude ?: existing.latitude,
+            longitude = input.longitude ?: existing.longitude,
             dataOrigin = DataOrigin.CACHE,
             isConfirmed = false,
         )

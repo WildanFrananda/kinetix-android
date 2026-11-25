@@ -1,14 +1,25 @@
 package com.kinetix.shop.ui.screens.profile
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -24,15 +35,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinetix.shop.R
 import com.kinetix.shop.models.common.DataOrigin
@@ -40,9 +56,10 @@ import com.kinetix.shop.state.profile.ProfileErrorUiState
 import com.kinetix.shop.state.profile.ProfileLoadedUiState
 import com.kinetix.shop.state.profile.ProfileLoadingUiState
 import com.kinetix.shop.state.profile.ProfileSavingUiState
+import com.kinetix.shop.ui.components.DeliveryMapPicker
 import com.kinetix.shop.ui.components.ErrorBannerBlock
 import com.kinetix.shop.ui.components.FailureMessageMapper
-import com.kinetix.shop.ui.components.LoadingIndicatorBlock
+import com.kinetix.shop.ui.components.ProfileSkeleton
 import com.kinetix.shop.ui.theme.KinetixPalette
 import com.kinetix.shop.viewmodels.profile.ProfileViewModel
 
@@ -56,6 +73,7 @@ fun ProfileScreen(
     onSignOut: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     var fullName by rememberSaveable { mutableStateOf("") }
     var phoneNumber by rememberSaveable { mutableStateOf("") }
@@ -64,11 +82,26 @@ fun ProfileScreen(
     var postalCode by rememberSaveable { mutableStateOf("") }
     var initializedForProfileId by rememberSaveable { mutableStateOf<Long?>(null) }
 
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        val granted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            viewModel.onUseCurrentLocation()
+        } else {
+            viewModel.onLocationPermissionDenied()
+        }
+    }
+
     val currentProfile = when (val current = state) {
         is ProfileLoadedUiState -> current.profile
         is ProfileSavingUiState -> current.currentProfile
         else -> null
     }
+
+    val loadedForMap = state as? ProfileLoadedUiState
+    val resolvedAddressFromMap = loadedForMap?.resolvedAddressFromMap
 
     LaunchedEffect(currentProfile) {
         if (currentProfile != null && initializedForProfileId != currentProfile.id) {
@@ -81,25 +114,38 @@ fun ProfileScreen(
         }
     }
 
+    LaunchedEffect(resolvedAddressFromMap) {
+        if (resolvedAddressFromMap != null) {
+            if (resolvedAddressFromMap.streetAddress.isNotBlank()) {
+                streetAddress = resolvedAddressFromMap.streetAddress
+            }
+            if (resolvedAddressFromMap.city.isNotBlank()) {
+                city = resolvedAddressFromMap.city
+            }
+            if (resolvedAddressFromMap.postalCode.isNotBlank()) {
+                postalCode = resolvedAddressFromMap.postalCode
+            }
+            viewModel.consumeResolvedAddressFromMap()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .imePadding()
-            .padding(24.dp),
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
             text = stringResource(R.string.profile_title),
             style = MaterialTheme.typography.headlineMedium,
-            color = KinetixPalette.ElectricVolt,
+            color = MaterialTheme.colorScheme.onBackground,
         )
 
         when (val current = state) {
             is ProfileLoadingUiState -> {
-                LoadingIndicatorBlock(
-                    label = stringResource(R.string.profile_loading),
-                )
+                ProfileSkeleton()
             }
             is ProfileErrorUiState -> {
                 ErrorBannerBlock(
@@ -114,43 +160,73 @@ fun ProfileScreen(
                 val displayAccountId = currentProfile?.accountId?.value ?: accountId
 
                 Card(
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     colors = CardDefaults.cardColors(
-                        containerColor = KinetixPalette.CardSlate,
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = email,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = KinetixPalette.TextPrimary,
-                        )
-                        if (displayAccountId != null) {
-                            Text(
-                                text = stringResource(
-                                    R.string.profile_account_format,
-                                    displayAccountId,
-                                    principalId,
+                        val initialsSource = fullName.trim().ifEmpty { email }
+                        val initial = initialsSource.firstOrNull()?.uppercaseChar()?.toString() ?: "K"
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape,
                                 ),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = KinetixPalette.TextSecondary,
+                        ) {
+                            Text(
+                                text = initial,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                ),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
-                        val lat = currentProfile?.latitude
-                        val lng = currentProfile?.longitude
-                        if (lat != null && lng != null) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             Text(
-                                text = stringResource(
-                                    R.string.profile_geocoded_format,
-                                    lat,
-                                    lng,
-                                ),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = KinetixPalette.CyanPulse,
+                                text = email,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
+                            if (displayAccountId != null) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.profile_account_format,
+                                        displayAccountId,
+                                        principalId,
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = KinetixPalette.TextMuted,
+                                )
+                            }
+                            val displayLat = loadedState?.selectedLatitude ?: currentProfile?.latitude
+                            val displayLng = loadedState?.selectedLongitude ?: currentProfile?.longitude
+                            if (displayLat != null && displayLng != null) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.profile_geocoded_format,
+                                        displayLat,
+                                        displayLng,
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = KinetixPalette.TextSecondary,
+                                )
+                            }
                         }
                     }
                 }
@@ -159,7 +235,7 @@ fun ProfileScreen(
                     Text(
                         text = stringResource(R.string.profile_not_created_hint),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = KinetixPalette.TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -167,7 +243,7 @@ fun ProfileScreen(
                     Text(
                         text = stringResource(R.string.profile_saved_banner),
                         style = MaterialTheme.typography.labelMedium,
-                        color = KinetixPalette.SuccessEmerald,
+                        color = MaterialTheme.colorScheme.tertiary,
                     )
                 }
 
@@ -190,9 +266,40 @@ fun ProfileScreen(
                     Text(
                         text = FailureMessageMapper.resolve(errorFailure),
                         style = MaterialTheme.typography.labelMedium,
-                        color = KinetixPalette.DangerCoral,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
+
+                DeliveryMapPicker(
+                    latitude = loadedState?.selectedLatitude ?: currentProfile?.latitude,
+                    longitude = loadedState?.selectedLongitude ?: currentProfile?.longitude,
+                    isGeocoding = loadedState?.isGeocodingMap == true,
+                    statusNotice = loadedState?.mapStatusNotice,
+                    enabled = !isSaving,
+                    onSelectCoordinates = { lat, lng ->
+                        viewModel.onMapLocationSelected(lat, lng)
+                    },
+                    onRequestCurrentLocation = {
+                        val hasFine = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                        ) == PackageManager.PERMISSION_GRANTED
+                        val hasCoarse = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (hasFine || hasCoarse) {
+                            viewModel.onUseCurrentLocation()
+                        } else {
+                            locationPermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                                )
+                            )
+                        }
+                    },
+                )
 
                 OutlinedTextField(
                     value = fullName,
@@ -200,6 +307,7 @@ fun ProfileScreen(
                     enabled = !isSaving,
                     label = { Text(text = stringResource(R.string.profile_field_full_name)) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
                         capitalization = KeyboardCapitalization.Words,
@@ -215,6 +323,7 @@ fun ProfileScreen(
                     enabled = !isSaving,
                     label = { Text(text = stringResource(R.string.profile_field_phone)) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Phone,
                         autoCorrectEnabled = false,
@@ -226,9 +335,17 @@ fun ProfileScreen(
                 )
                 OutlinedTextField(
                     value = streetAddress,
-                    onValueChange = { streetAddress = it },
+                    onValueChange = { updated ->
+                        streetAddress = updated
+                        viewModel.onAddressFormChanged(
+                            streetAddress = updated,
+                            city = city,
+                            postalCode = postalCode,
+                        )
+                    },
                     enabled = !isSaving,
                     label = { Text(text = stringResource(R.string.profile_field_street)) },
+                    shape = MaterialTheme.shapes.small,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
                         capitalization = KeyboardCapitalization.Sentences,
@@ -240,10 +357,18 @@ fun ProfileScreen(
                 )
                 OutlinedTextField(
                     value = city,
-                    onValueChange = { city = it },
+                    onValueChange = { updated ->
+                        city = updated
+                        viewModel.onAddressFormChanged(
+                            streetAddress = streetAddress,
+                            city = updated,
+                            postalCode = postalCode,
+                        )
+                    },
                     enabled = !isSaving,
                     label = { Text(text = stringResource(R.string.profile_field_city)) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
                         capitalization = KeyboardCapitalization.Words,
@@ -255,10 +380,18 @@ fun ProfileScreen(
                 )
                 OutlinedTextField(
                     value = postalCode,
-                    onValueChange = { postalCode = it },
+                    onValueChange = { updated ->
+                        postalCode = updated
+                        viewModel.onAddressFormChanged(
+                            streetAddress = streetAddress,
+                            city = city,
+                            postalCode = updated,
+                        )
+                    },
                     enabled = !isSaving,
                     label = { Text(text = stringResource(R.string.profile_field_postal_code)) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         autoCorrectEnabled = false,
@@ -270,10 +403,11 @@ fun ProfileScreen(
                 )
 
                 Spacer(
-                    modifier = Modifier.height(8.dp),
+                    modifier = Modifier.height(6.dp),
                 )
 
                 Button(
+                    shape = MaterialTheme.shapes.small,
                     onClick = {
                         viewModel.saveProfile(
                             fullNameInput = fullName,
@@ -296,6 +430,8 @@ fun ProfileScreen(
                 }
 
                 OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     onClick = onNavigateToTwoFactorSettings,
                     enabled = !isSaving,
                     modifier = Modifier.fillMaxWidth(),
@@ -306,13 +442,15 @@ fun ProfileScreen(
                 }
 
                 OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     onClick = onSignOut,
                     enabled = !isSaving,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = stringResource(R.string.profile_sign_out_button),
-                        color = KinetixPalette.DangerCoral,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }

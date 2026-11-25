@@ -8,6 +8,7 @@ import com.kinetix.shop.core.result.Err
 import com.kinetix.shop.core.result.Ok
 import com.kinetix.shop.models.ids.ProductSku
 import com.kinetix.shop.models.pricing.ProductPriceIndication
+import com.kinetix.shop.repositories.cart.CartRepository
 import com.kinetix.shop.repositories.catalog.CatalogRepository
 import com.kinetix.shop.repositories.pricing.PricingRepository
 import com.kinetix.shop.repositories.review.ReviewRepository
@@ -29,6 +30,7 @@ class ProductDetailViewModel @Inject constructor(
     private val catalogRepository: CatalogRepository,
     private val pricingRepository: PricingRepository,
     private val reviewRepository: ReviewRepository,
+    private val cartRepository: CartRepository?,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     @SuppressLint("VisibleForTests")
@@ -36,11 +38,13 @@ class ProductDetailViewModel @Inject constructor(
         catalogRepository: CatalogRepository,
         pricingRepository: PricingRepository,
         reviewRepository: ReviewRepository,
+        savedStateHandle: SavedStateHandle = SavedStateHandle(),
     ) : this(
         catalogRepository = catalogRepository,
         pricingRepository = pricingRepository,
         reviewRepository = reviewRepository,
-        savedStateHandle = SavedStateHandle(),
+        cartRepository = null,
+        savedStateHandle = savedStateHandle,
     )
 
     private val mutableState = MutableStateFlow<ProductDetailUiState>(ProductDetailLoadingUiState)
@@ -69,6 +73,42 @@ class ProductDetailViewModel @Inject constructor(
     fun retry() {
         val sku = activeSku ?: return
         startLoad(sku)
+    }
+
+    fun addToCart(
+        quantity: Int,
+    ) {
+        val repository = cartRepository ?: return
+        val current = mutableState.value as? ProductDetailLoadedUiState ?: return
+        if (current.isAddingToCart) {
+            return
+        }
+        val clamped = quantity.coerceIn(1, MAX_ADD_QUANTITY)
+        mutableState.value = current.copy(
+            isAddingToCart = true,
+            addedToCartBanner = false,
+            addToCartFailure = null,
+        )
+        viewModelScope.launch {
+            when (val result = repository.addCartItem(sku = current.product.sku, quantity = clamped)) {
+                is Ok -> {
+                    val latest = mutableState.value as? ProductDetailLoadedUiState ?: return@launch
+                    mutableState.value = latest.copy(
+                        isAddingToCart = false,
+                        addedToCartBanner = true,
+                        addToCartFailure = null,
+                    )
+                }
+                is Err -> {
+                    val latest = mutableState.value as? ProductDetailLoadedUiState ?: return@launch
+                    mutableState.value = latest.copy(
+                        isAddingToCart = false,
+                        addedToCartBanner = false,
+                        addToCartFailure = result.failure,
+                    )
+                }
+            }
+        }
     }
 
     fun loadReviewsPage(
@@ -161,5 +201,9 @@ class ProductDetailViewModel @Inject constructor(
                 merchantReviews = merchantReviews,
             )
         }
+    }
+
+    companion object {
+        private const val MAX_ADD_QUANTITY = 999
     }
 }

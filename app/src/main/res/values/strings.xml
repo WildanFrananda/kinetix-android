@@ -174,4 +174,52 @@
     <string name="session_unreadable_message">Your saved session could not be read on this device. Sign in again to replace it.</string>
     <string name="session_unreadable_sign_in_action">Sign In Again</string>
     <string name="session_non_buyer_role_notice">This app is for buyer accounts. Wallet features require a customer account.</string>
+
+    <string name="profile_map_section_title">Delivery Pinpoint</string>
+    <string name="profile_map_hint">Tap the map to set your pinpoint or edit the address below to move the pin automatically.</string>
+    <string name="profile_map_use_current_location">Use Current Location</string>
+    <string name="profile_map_coordinates_format">Pin: %1$.5f, %2$.5f</string>
+    <string name="profile_map_no_pin">No pinpoint selected yet</string>
+    <string name="profile_map_geocoding">Updating address and map pin…</string>
+    <string name="profile_map_notice_pin_updated">Map pin updated from address.</string>
+    <string name="profile_map_notice_address_updated">Address fields updated from map pin.</string>
+    <string name="profile_map_notice_location_unavailable">Could not read your current device location. Tap the map or enter the address manually.</string>
+    <string name="profile_map_notice_permission_denied">Location permission denied. Tap the map or type your address to place the pin.</string>
+
+    <string name="nav_cart">Cart</string>
+    <string name="cart_title">Shopping Cart</string>
+    <string name="cart_item_count_format">%1$d items</string>
+    <string name="cart_voucher_toggle">Have a voucher code?</string>
+    <string name="cart_empty_title">Your cart is empty</string>
+    <string name="cart_empty_subtitle">Browse products and add items to begin checkout.</string>
+    <string name="cart_item_unit_price_format">Unit price: %1$s</string>
+    <string name="cart_remove_item">Remove</string>
+    <string name="cart_single_merchant_warning">Checkout requires all cart items to come from one merchant. Remove items from other merchants before checking out.</string>
+    <string name="cart_voucher_title">Voucher Code</string>
+    <string name="cart_voucher_field_label">Enter voucher code</string>
+    <string name="cart_voucher_apply">Apply</string>
+    <string name="cart_voucher_applied_format">Applied on cart: %1$s</string>
+    <string name="cart_voucher_remove">Remove</string>
+    <string name="cart_voucher_terms_percentage">Save %1$s%% (min. spend %2$s)</string>
+    <string name="cart_voucher_terms_fixed">Save %1$s (min. spend %2$s)</string>
+    <string name="cart_voucher_preview_not_applicable">Preview: this voucher does not apply to your current cart subtotal or merchant.</string>
+    <string name="cart_voucher_preview_caveat">Preview uses catalog subtotal; checkout evaluates eligibility after flash sales and discounts.</string>
+    <string name="cart_subtotal_indication_label">Catalog Subtotal</string>
+    <string name="cart_subtotal_indication_note">Indication at catalog prices. Shipping and discounts are settled at checkout.</string>
+    <string name="cart_clear_action">Empty Cart</string>
+    <string name="product_detail_add_to_cart">Add to Cart</string>
+    <string name="product_detail_adding_to_cart">Adding…</string>
+    <string name="product_detail_added_to_cart_banner">Added to your cart.</string>
+
+    <string name="error_product_not_in_catalog">This product is no longer in the catalog.</string>
+    <string name="error_cart_busy">The cart changed while updating. Please try again.</string>
+    <string name="error_cart_voucher_required">Enter a voucher code first.</string>
+    <string name="error_cart_voucher_too_long">Voucher code cannot exceed 50 characters.</string>
+    <string name="error_cart_quantity_out_of_range">Quantity must be between 1 and 999.</string>
+    <string name="error_cart_product_no_price">This product does not have a chargeable price.</string>
+    <string name="error_cart_product_no_merchant">This product has no assigned merchant.</string>
+    <string name="error_cart_own_product">You cannot purchase your own product.</string>
+    <string name="error_cart_catalog_unavailable">Catalog service is temporarily unavailable. Nothing was changed.</string>
+    <string name="error_cart_unavailable">Your cart cannot be reached right now. Please try again shortly.</string>
+    <string name="error_cart_write_unknown">We could not confirm whether your cart update completed. Your cart has been refreshed.</string>
 </resources>

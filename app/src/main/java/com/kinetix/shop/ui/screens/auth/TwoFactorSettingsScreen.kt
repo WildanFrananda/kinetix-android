@@ -1,5 +1,6 @@
 package com.kinetix.shop.ui.screens.auth
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -66,12 +67,12 @@ fun TwoFactorSettingsScreen(
         Text(
             text = stringResource(R.string.two_factor_settings_title),
             style = MaterialTheme.typography.headlineMedium,
-            color = KinetixPalette.ElectricVolt,
+            color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
             text = stringResource(R.string.two_factor_settings_subtitle),
             style = MaterialTheme.typography.bodyMedium,
-            color = KinetixPalette.TextSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         OutlinedTextField(
@@ -80,6 +81,7 @@ fun TwoFactorSettingsScreen(
             enabled = controlsEnabled,
             label = { Text(text = stringResource(R.string.field_account_password)) },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
@@ -99,6 +101,7 @@ fun TwoFactorSettingsScreen(
             enabled = controlsEnabled,
             label = { Text(text = stringResource(R.string.field_authenticator_code)) },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.NumberPassword,
                 autoCorrectEnabled = false,
@@ -114,7 +117,7 @@ fun TwoFactorSettingsScreen(
                 Text(
                     text = FailureMessageMapper.resolve(current.failure),
                     style = MaterialTheme.typography.labelMedium,
-                    color = KinetixPalette.DangerCoral,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
             is TwoFactorSettingsDelayedUiState -> {
@@ -135,14 +138,17 @@ fun TwoFactorSettingsScreen(
                         stringResource(R.string.two_factor_completed_disabled)
                     },
                     style = MaterialTheme.typography.labelMedium,
-                    color = KinetixPalette.SuccessEmerald,
+                    color = MaterialTheme.colorScheme.tertiary,
                 )
             }
             is TwoFactorSettingsSecretReadyUiState -> {
                 Card(
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     colors = CardDefaults.cardColors(
-                        containerColor = KinetixPalette.CardSlate,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
@@ -152,20 +158,20 @@ fun TwoFactorSettingsScreen(
                         Text(
                             text = stringResource(R.string.two_factor_secret_label),
                             style = MaterialTheme.typography.labelMedium,
-                            color = KinetixPalette.TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = current.secret.secret,
                             style = MaterialTheme.typography.titleMedium,
-                            color = KinetixPalette.ElectricVolt,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         Text(
                             text = stringResource(
                                 R.string.two_factor_uri_label,
                                 current.secret.qrCodeUrl,
                             ),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = KinetixPalette.TextSecondary,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KinetixPalette.TextMuted,
                         )
                     }
                 }
@@ -179,6 +185,8 @@ fun TwoFactorSettingsScreen(
         )
 
         OutlinedButton(
+            shape = MaterialTheme.shapes.small,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             onClick = {
                 viewModel.requestSetupSecret(
                     password = password,
@@ -192,6 +200,7 @@ fun TwoFactorSettingsScreen(
             )
         }
         Button(
+            shape = MaterialTheme.shapes.small,
             onClick = {
                 viewModel.enableTwoFactor(
                     code = totpCode,
@@ -206,6 +215,8 @@ fun TwoFactorSettingsScreen(
             )
         }
         OutlinedButton(
+            shape = MaterialTheme.shapes.small,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
             onClick = {
                 viewModel.disableTwoFactor(
                     code = totpCode,
@@ -217,7 +228,7 @@ fun TwoFactorSettingsScreen(
         ) {
             Text(
                 text = stringResource(R.string.two_factor_disable_button),
-                color = KinetixPalette.DangerCoral,
+                color = MaterialTheme.colorScheme.error,
             )
         }
     }

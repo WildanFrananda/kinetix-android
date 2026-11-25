@@ -13,6 +13,8 @@ data class UpdateDeliveryProfileInput(
     val postalCode: String? = null,
     val avatarUrl: String? = null,
     val clearAvatar: Boolean = false,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
 ) {
     fun hasChanges(): Boolean {
         return fullName != null ||
@@ -21,7 +23,8 @@ data class UpdateDeliveryProfileInput(
             city != null ||
             postalCode != null ||
             avatarUrl != null ||
-            clearAvatar
+            clearAvatar ||
+            (latitude != null && longitude != null)
     }
 
     fun toJsonObject(): JsonObject {
@@ -35,6 +38,10 @@ data class UpdateDeliveryProfileInput(
                 put("avatarUrl", JsonNull)
             } else {
                 avatarUrl?.let { put("avatarUrl", JsonPrimitive(it)) }
+            }
+            if (latitude != null && longitude != null) {
+                put("latitude", JsonPrimitive(latitude))
+                put("longitude", JsonPrimitive(longitude))
             }
         }
     }

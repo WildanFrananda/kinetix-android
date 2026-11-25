@@ -1,5 +1,6 @@
 package com.kinetix.shop.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,8 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.kinetix.shop.R
-import com.kinetix.shop.ui.theme.KinetixPalette
 
 @Composable
 fun PaginationControlsRow(
@@ -29,6 +30,8 @@ fun PaginationControlsRow(
         OutlinedButton(
             onClick = onPrevious,
             enabled = currentPage > 1,
+            shape = MaterialTheme.shapes.small,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
             Text(
                 text = stringResource(R.string.action_prev),
@@ -41,11 +44,13 @@ fun PaginationControlsRow(
                 totalPages,
             ),
             style = MaterialTheme.typography.labelMedium,
-            color = KinetixPalette.TextSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedButton(
             onClick = onNext,
             enabled = currentPage < totalPages,
+            shape = MaterialTheme.shapes.small,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
             Text(
                 text = stringResource(R.string.action_next),
