@@ -17,11 +17,15 @@ class UpdateDeliveryProfileInputTest {
         val partial = UpdateDeliveryProfileInput(
             city = "Bandung",
             clearAvatar = true,
+            latitude = -6.9175,
+            longitude = 107.6191,
         )
         assertTrue(partial.hasChanges())
         val json = partial.toJsonObject()
         assertEquals(JsonPrimitive("Bandung"), json["city"])
         assertEquals(JsonNull, json["avatarUrl"])
+        assertEquals(JsonPrimitive(-6.9175), json["latitude"])
+        assertEquals(JsonPrimitive(107.6191), json["longitude"])
         assertFalse(json.containsKey("fullName"))
         assertFalse(json.containsKey("phoneNumber"))
     }

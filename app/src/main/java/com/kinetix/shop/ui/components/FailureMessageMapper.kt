@@ -53,10 +53,17 @@ object FailureMessageMapper {
                 FailureTextSpec(resId)
             }
             is ForbiddenFailure -> FailureTextSpec(R.string.error_forbidden)
-            is NotFoundFailure -> FailureTextSpec(R.string.error_not_found)
+            is NotFoundFailure -> {
+                val resId = when (failure.code) {
+                    "PRODUCT_NOT_IN_CATALOG" -> R.string.error_product_not_in_catalog
+                    else -> R.string.error_not_found
+                }
+                FailureTextSpec(resId)
+            }
             is ConflictFailure -> {
                 val resId = when (failure.code) {
                     "EMAIL_ALREADY_EXISTS" -> R.string.error_email_already_exists
+                    "CART_BUSY" -> R.string.error_cart_busy
                     else -> R.string.error_conflict
                 }
                 FailureTextSpec(resId)
@@ -92,6 +99,13 @@ object FailureMessageMapper {
                 val resId = when (failure.code) {
                     "malformed_query" -> R.string.error_search_malformed_query
                     "PASSWORD_REQUIRED" -> R.string.error_password_required
+                    "VOUCHER_CODE_REQUIRED" -> R.string.error_cart_voucher_required
+                    "FIELD_TOO_LONG" -> R.string.error_cart_voucher_too_long
+                    "QUANTITY_OUT_OF_RANGE",
+                    "CART_LINE_QUANTITY_OUT_OF_RANGE" -> R.string.error_cart_quantity_out_of_range
+                    "PRODUCT_HAS_NO_USABLE_PRICE" -> R.string.error_cart_product_no_price
+                    "PRODUCT_HAS_NO_MERCHANT" -> R.string.error_cart_product_no_merchant
+                    "OWN_PRODUCT_NOT_PURCHASABLE" -> R.string.error_cart_own_product
                     else -> R.string.error_validation_generic
                 }
                 FailureTextSpec(resId)
@@ -102,7 +116,8 @@ object FailureMessageMapper {
                     "index_unavailable",
                     "dependency_unavailable",
                     "stale" -> R.string.error_search_index_unavailable
-
+                    "CATALOG_UNAVAILABLE" -> R.string.error_cart_catalog_unavailable
+                    "CART_UNAVAILABLE" -> R.string.error_cart_unavailable
                     else -> R.string.error_unavailable
                 }
                 FailureTextSpec(resId)
@@ -113,6 +128,7 @@ object FailureMessageMapper {
             is UnknownOutcomeFailure -> {
                 val resId = when (failure.code) {
                     "corrupt_record" -> R.string.error_search_corrupt_record
+                    "CART_UNAVAILABLE" -> R.string.error_cart_write_unknown
                     else -> R.string.error_unknown_outcome
                 }
                 FailureTextSpec(resId)

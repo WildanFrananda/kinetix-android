@@ -1,5 +1,6 @@
 package com.kinetix.shop.ui.screens.search
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,10 +19,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -45,7 +49,7 @@ import com.kinetix.shop.state.search.SearchIdleUiState
 import com.kinetix.shop.state.search.SearchLoadedUiState
 import com.kinetix.shop.state.search.SearchLoadingUiState
 import com.kinetix.shop.ui.components.ErrorBannerBlock
-import com.kinetix.shop.ui.components.LoadingIndicatorBlock
+import com.kinetix.shop.ui.components.SearchSkeleton
 import com.kinetix.shop.ui.theme.KinetixPalette
 import com.kinetix.shop.viewmodels.search.SearchViewModel
 
@@ -57,6 +61,13 @@ fun SearchScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var queryInput by rememberSaveable { mutableStateOf(initialQuery) }
+
+    val chipColors = FilterChipDefaults.filterChipColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    )
 
     Column(
         modifier = Modifier
@@ -76,6 +87,7 @@ fun SearchScreen(
                 },
                 label = { Text(text = stringResource(R.string.search_field_label)) },
                 singleLine = true,
+                shape = MaterialTheme.shapes.small,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Search,
@@ -88,6 +100,7 @@ fun SearchScreen(
                 modifier = Modifier.weight(1f),
             )
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = {
                     viewModel.executeSearch(query = queryInput)
                 },
@@ -115,8 +128,19 @@ fun SearchScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             items(sortOptions) { (sortKey, label) ->
+                val isSelected = loadedState?.selectedSort == sortKey
                 FilterChip(
-                    selected = loadedState?.selectedSort == sortKey,
+                    selected = isSelected,
+                    shape = MaterialTheme.shapes.small,
+                    colors = chipColors,
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        borderColor = MaterialTheme.colorScheme.outline,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary,
+                        borderWidth = 1.dp,
+                        selectedBorderWidth = 1.dp,
+                    ),
                     onClick = {
                         viewModel.executeSearch(
                             query = queryInput,
@@ -138,6 +162,12 @@ fun SearchScreen(
             ) {
                 items(loadedState.suggestions) { suggestion ->
                     SuggestionChip(
+                        shape = MaterialTheme.shapes.small,
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         onClick = {
                             queryInput = suggestion
                             viewModel.executeSearch(query = suggestion)
@@ -157,13 +187,11 @@ fun SearchScreen(
                 Text(
                     text = stringResource(R.string.search_idle_prompt),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = KinetixPalette.TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             is SearchLoadingUiState -> {
-                LoadingIndicatorBlock(
-                    label = stringResource(R.string.search_loading),
-                )
+                SearchSkeleton()
             }
             is SearchErrorUiState -> {
                 ErrorBannerBlock(
@@ -176,9 +204,12 @@ fun SearchScreen(
             is SearchLoadedUiState -> {
                 if (current.searchResult.indexState.stale) {
                     Card(
+                        shape = MaterialTheme.shapes.medium,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         colors = CardDefaults.cardColors(
-                            containerColor = KinetixPalette.CardSlate,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
@@ -199,8 +230,19 @@ fun SearchScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         item {
+                            val isAllSelected = current.selectedCategorySlug == null
                             FilterChip(
-                                selected = current.selectedCategorySlug == null,
+                                selected = isAllSelected,
+                                shape = MaterialTheme.shapes.small,
+                                colors = chipColors,
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isAllSelected,
+                                    borderColor = MaterialTheme.colorScheme.outline,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                                    borderWidth = 1.dp,
+                                    selectedBorderWidth = 1.dp,
+                                ),
                                 onClick = {
                                     viewModel.executeSearch(
                                         query = queryInput,
@@ -213,8 +255,19 @@ fun SearchScreen(
                         }
                         items(current.searchResult.categoryFacets) { facet ->
                             val slug = CategorySlug(facet.value)
+                            val isFacetSelected = current.selectedCategorySlug == slug
                             FilterChip(
-                                selected = current.selectedCategorySlug == slug,
+                                selected = isFacetSelected,
+                                shape = MaterialTheme.shapes.small,
+                                colors = chipColors,
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isFacetSelected,
+                                    borderColor = MaterialTheme.colorScheme.outline,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                                    borderWidth = 1.dp,
+                                    selectedBorderWidth = 1.dp,
+                                ),
                                 onClick = {
                                     viewModel.executeSearch(
                                         query = queryInput,
@@ -238,14 +291,14 @@ fun SearchScreen(
                         current.searchResult.total,
                     ),
                     style = MaterialTheme.typography.labelMedium,
-                    color = KinetixPalette.TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(
                     modifier = Modifier.height(8.dp),
                 )
 
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f),
                 ) {
                     items(current.searchResult.hits) { hit ->
@@ -255,41 +308,46 @@ fun SearchScreen(
                         )
 
                         Card(
+                            shape = MaterialTheme.shapes.medium,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             colors = CardDefaults.cardColors(
-                                containerColor = KinetixPalette.CardSlate,
+                                containerColor = MaterialTheme.colorScheme.surface,
                             ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onSelectProduct(hit.sku) },
                         ) {
                             Column(
-                                modifier = Modifier.padding(16.dp),
+                                modifier = Modifier.padding(14.dp),
                             ) {
-                                Text(
-                                    text = hit.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = KinetixPalette.TextPrimary,
-                                )
                                 if (hit.categories.isNotEmpty()) {
-                                    Spacer(
-                                        modifier = Modifier.height(4.dp),
-                                    )
                                     Text(
                                         text = stringResource(
                                             R.string.search_category_prefix,
                                             hit.categories.joinToString(", ") { it.value },
-                                        ),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = KinetixPalette.CyanPulse,
+                                        ).uppercase(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KinetixPalette.TextMuted,
+                                    )
+                                    Spacer(
+                                        modifier = Modifier.height(4.dp),
                                     )
                                 }
+                                Text(
+                                    text = hit.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
                                 Spacer(
                                     modifier = Modifier.height(6.dp),
                                 )
                                 Text(
                                     text = formattedPrice,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = KinetixPalette.ElectricVolt,
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }
@@ -306,6 +364,8 @@ fun SearchScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         onClick = {
                             viewModel.executeSearch(
                                 query = current.query,
@@ -321,6 +381,8 @@ fun SearchScreen(
                         )
                     }
                     OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         onClick = {
                             viewModel.executeSearch(
                                 query = current.query,

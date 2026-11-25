@@ -24,6 +24,7 @@ import com.kinetix.shop.services.local.OutboxDao
 import com.kinetix.shop.services.local.ProfileCacheDao
 import com.kinetix.shop.services.remote.CatalogApiService
 import com.kinetix.shop.services.remote.IdentityApiService
+import com.kinetix.shop.services.remote.OrderApiService
 import com.kinetix.shop.services.remote.PricingApiService
 import com.kinetix.shop.services.remote.ReviewApiService
 import com.kinetix.shop.services.remote.SearchApiService
@@ -145,6 +146,14 @@ object CoreModule {
         retrofit: Retrofit,
     ): ReviewApiService {
         return retrofit.create(ReviewApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOrderApiService(
+        retrofit: Retrofit,
+    ): OrderApiService {
+        return retrofit.create(OrderApiService::class.java)
     }
 
     @Provides

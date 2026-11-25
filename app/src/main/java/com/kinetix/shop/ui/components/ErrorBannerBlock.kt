@@ -1,5 +1,6 @@
 package com.kinetix.shop.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +17,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kinetix.shop.R
 import com.kinetix.shop.core.failure.Failure
-import com.kinetix.shop.ui.theme.KinetixPalette
 
 @Composable
 fun ErrorBannerBlock(
@@ -25,9 +25,12 @@ fun ErrorBannerBlock(
     onRetry: (() -> Unit)? = null,
 ) {
     Card(
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
         colors = CardDefaults.cardColors(
-            containerColor = KinetixPalette.CardSlate,
+            containerColor = MaterialTheme.colorScheme.errorContainer,
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(
@@ -36,7 +39,7 @@ fun ErrorBannerBlock(
             Text(
                 text = FailureMessageMapper.resolve(failure),
                 style = MaterialTheme.typography.bodyMedium,
-                color = KinetixPalette.DangerCoral,
+                color = MaterialTheme.colorScheme.onErrorContainer,
             )
             if (onRetry != null) {
                 Spacer(
@@ -44,6 +47,7 @@ fun ErrorBannerBlock(
                 )
                 Button(
                     onClick = onRetry,
+                    shape = MaterialTheme.shapes.small,
                 ) {
                     Text(
                         text = stringResource(R.string.action_retry),

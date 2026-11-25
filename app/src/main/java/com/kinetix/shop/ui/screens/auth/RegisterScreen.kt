@@ -1,5 +1,6 @@
 package com.kinetix.shop.ui.screens.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
@@ -64,18 +67,26 @@ fun RegisterScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
+        Image(
+            painter = painterResource(R.drawable.ic_kinetix_mark),
+            contentDescription = stringResource(R.string.brand_wordmark),
+            modifier = Modifier.size(36.dp),
+        )
+        Spacer(
+            modifier = Modifier.height(16.dp),
+        )
         Text(
             text = stringResource(R.string.register_title),
             style = MaterialTheme.typography.headlineMedium,
-            color = KinetixPalette.ElectricVolt,
+            color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(
-            modifier = Modifier.height(8.dp),
+            modifier = Modifier.height(6.dp),
         )
         Text(
             text = stringResource(R.string.register_subtitle),
             style = MaterialTheme.typography.bodyMedium,
-            color = KinetixPalette.TextSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(
             modifier = Modifier.height(20.dp),
@@ -87,6 +98,7 @@ fun RegisterScreen(
             enabled = controlsEnabled,
             label = { Text(text = stringResource(R.string.field_email)) },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 autoCorrectEnabled = false,
@@ -105,6 +117,7 @@ fun RegisterScreen(
             enabled = controlsEnabled,
             label = { Text(text = stringResource(R.string.field_password)) },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
@@ -134,7 +147,7 @@ fun RegisterScreen(
                 Text(
                     text = FailureMessageMapper.resolve(current.failure),
                     style = MaterialTheme.typography.labelMedium,
-                    color = KinetixPalette.DangerCoral,
+                    color = MaterialTheme.colorScheme.error,
                 )
                 Spacer(
                     modifier = Modifier.height(12.dp),
@@ -161,6 +174,7 @@ fun RegisterScreen(
         }
 
         Button(
+            shape = MaterialTheme.shapes.small,
             onClick = {
                 viewModel.register(
                     email = email,
@@ -187,16 +201,17 @@ fun RegisterScreen(
             )
         }
         Spacer(
-            modifier = Modifier.height(12.dp),
+            modifier = Modifier.height(8.dp),
         )
         TextButton(
+            shape = MaterialTheme.shapes.small,
             onClick = onNavigateToSignIn,
             enabled = controlsEnabled,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = stringResource(R.string.register_switch_to_sign_in),
-                color = KinetixPalette.CyanPulse,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }

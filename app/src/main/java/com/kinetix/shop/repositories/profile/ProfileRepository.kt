@@ -6,6 +6,8 @@ import com.kinetix.shop.models.profile.ProfileUpdateOutcome
 import com.kinetix.shop.models.profile.UpdateDeliveryProfileInput
 
 interface ProfileRepository {
+    suspend fun getCachedProfile(): DeliveryProfile?
+
     suspend fun getProfile(): Result<DeliveryProfile>
 
     suspend fun updateProfile(

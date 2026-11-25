@@ -10,6 +10,8 @@ import com.kinetix.shop.repositories.auth.SessionRepository
 import com.kinetix.shop.repositories.auth.SessionRepositoryImpl
 import com.kinetix.shop.repositories.auth.TwoFactorRepository
 import com.kinetix.shop.repositories.auth.TwoFactorRepositoryImpl
+import com.kinetix.shop.repositories.cart.CartRepository
+import com.kinetix.shop.repositories.cart.CartRepositoryImpl
 import com.kinetix.shop.repositories.catalog.CatalogRepository
 import com.kinetix.shop.repositories.catalog.CatalogRepositoryImpl
 import com.kinetix.shop.repositories.pricing.PricingRepository
@@ -28,6 +30,10 @@ import com.kinetix.shop.services.local.ProfileCacheStore
 import com.kinetix.shop.services.local.RoomCatalogCacheStore
 import com.kinetix.shop.services.local.RoomOutboxStore
 import com.kinetix.shop.services.local.RoomProfileCacheStore
+import com.kinetix.shop.services.location.AddressGeocoder
+import com.kinetix.shop.services.location.AndroidAddressGeocoder
+import com.kinetix.shop.services.location.AndroidDeviceLocationProvider
+import com.kinetix.shop.services.location.DeviceLocationProvider
 import com.kinetix.shop.services.notification.DefaultPushMessageHandler
 import com.kinetix.shop.services.notification.FcmTokenStore
 import com.kinetix.shop.services.notification.PushMessageHandler
@@ -162,6 +168,12 @@ abstract class CoreBindingsModule {
 
     @Binds
     @Singleton
+    abstract fun bindCartRepository(
+        impl: CartRepositoryImpl,
+    ): CartRepository
+
+    @Binds
+    @Singleton
     abstract fun bindCatalogRepository(
         impl: CatalogRepositoryImpl,
     ): CatalogRepository
@@ -177,6 +189,18 @@ abstract class CoreBindingsModule {
     abstract fun bindSearchRepository(
         impl: SearchRepositoryImpl,
     ): SearchRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAddressGeocoder(
+        impl: AndroidAddressGeocoder,
+    ): AddressGeocoder
+
+    @Binds
+    @Singleton
+    abstract fun bindDeviceLocationProvider(
+        impl: AndroidDeviceLocationProvider,
+    ): DeviceLocationProvider
 
     @Binds
     @Singleton

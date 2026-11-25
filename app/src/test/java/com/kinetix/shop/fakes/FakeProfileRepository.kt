@@ -7,8 +7,11 @@ import com.kinetix.shop.models.profile.DeliveryProfile
 import com.kinetix.shop.models.profile.ProfileUpdateOutcome
 import com.kinetix.shop.models.profile.UpdateDeliveryProfileInput
 import com.kinetix.shop.repositories.profile.ProfileRepository
+import kotlinx.coroutines.CompletableDeferred
 
 class FakeProfileRepository : ProfileRepository {
+    var cachedProfile: DeliveryProfile? = null
+    var getProfileGate: CompletableDeferred<Unit>? = null
     var getProfileResult: Result<DeliveryProfile> = Err(
         UnauthorizedFailure("NOT_CONFIGURED")
     )
@@ -17,7 +20,12 @@ class FakeProfileRepository : ProfileRepository {
     )
     var lastUpdatedInput: UpdateDeliveryProfileInput? = null
 
+    override suspend fun getCachedProfile(): DeliveryProfile? {
+        return cachedProfile
+    }
+
     override suspend fun getProfile(): Result<DeliveryProfile> {
+        getProfileGate?.await()
         return getProfileResult
     }
 
